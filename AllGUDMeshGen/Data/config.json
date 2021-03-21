@@ -1,0 +1,6 @@
+{
+    "formulaRangedLeveled" : "{name} ({min} ~ {max})",
+    "formulaDeleveled": "{name} ({min})",
+    "formulaLeveled": "{name} ({min}+)",
+    "patchMapMarkers": true
+}

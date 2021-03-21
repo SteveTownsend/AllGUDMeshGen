@@ -1,0 +1,10 @@
+{
+  "Nickname": "AllGUD",
+  "Visibility": "Exclude",
+  "OneLineDescription": "All-in-one mesh patcher and alternature texture handler for All Geared Up Derivative (AllGUD)",
+  "LongDescription": "Combines the functions of the three xEdit scripts: skeleton patcher, mesh generator and alternate texture handler",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [
+    "All Geared Up Derivative.esp"
+  ]
+}
