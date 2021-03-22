@@ -12,20 +12,13 @@ namespace AllGUD
     public class MeshGen
     {
         private static readonly ModKey AllGUDModKey = ModKey.FromNameAndExtension("All Geared Up Derivative.esp");
-        public static async Task<int> Main(string[] args)
-        {
-            return await SynthesisPipeline.Instance
-                .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
-                .Run(args, new RunPreferences()
-                {
-                    ActionsForEmptyArgs = new RunDefaultPatcher()
-                    {
-                        IdentifyingModKey = "AllGUDMeshGen.esp",
-                        TargetRelease = GameRelease.SkyrimSE,
-                    }
-                });
-        }
 
+        public static Task<int> Main(string[] args)
+        {
+            return SynthesisPipeline.Instance.SetTypicalOpen(GameRelease.SkyrimSE, "AllGUDMeshGen.esp")
+                .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
+                .Run(args);
+        }
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
             // determine the file path for meshes
