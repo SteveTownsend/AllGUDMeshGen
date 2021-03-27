@@ -1,6 +1,17 @@
 {
-    "formulaRangedLeveled" : "{name} ({min} ~ {max})",
-    "formulaDeleveled": "{name} ({min})",
-    "formulaLeveled": "{name} ({min}+)",
-    "patchMapMarkers": true
+  "skeleton": {
+    "inputFolder": "",
+    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Output/"
+  },
+  "meshGen": {
+    "inputFolder": "",
+    "outputFolder": "",
+    "oneHandedMelee": true,
+    "twoHandedMelee": true,
+    "shieldOnBack": true,
+    "bowCrossbow": true,
+    "staff": true,
+    "mirrorLeftStaves" : false,
+    "dynamicDisplay" :  false
+  }
 }
