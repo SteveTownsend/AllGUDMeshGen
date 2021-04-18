@@ -4,14 +4,14 @@
     "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Output/"
   },
   "meshGen": {
-    "inputFolder": "",
-    "outputFolder": "",
+    "inputFolder": "j:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/meshes/",
+    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Output/meshes",
     "oneHandedMelee": true,
     "twoHandedMelee": true,
     "shieldOnBack": true,
     "bowCrossbow": true,
     "staff": true,
-    "mirrorLeftStaves" : false,
-    "dynamicDisplay" :  false
+    "mirrorLeftStaves": false,
+    "dynamicDisplay": false
   }
 }

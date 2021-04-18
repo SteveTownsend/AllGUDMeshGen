@@ -4,10 +4,12 @@ using Newtonsoft.Json.Linq;
 
 namespace AllGUD
 {
-    public class Config
+    internal class Config
     {
-        public string skeletonInputFolder { get; set; }
-        public string skeletonOutputFolder { get; set; }
+        public string skeletonInputFolder { get; }
+        public string skeletonOutputFolder { get; }
+        public string meshGenInputFolder { get; }
+        public string meshGenOutputFolder { get; }
 
         public Config(string configFilePath)
         {
@@ -24,6 +26,11 @@ namespace AllGUD
                 skeletonInputFolder = (string)skeletonKeys["inputFolder"]!;
                 skeletonOutputFolder = (string)skeletonKeys["outputFolder"]!;
                 Console.WriteLine(String.Format("Skeleton input folder='{0}' output folder = '{1}'", skeletonInputFolder, skeletonOutputFolder));
+
+                var meshGenKeys = configJson["meshGen"]!;
+                meshGenInputFolder = (string)meshGenKeys["inputFolder"]!;
+                meshGenOutputFolder = (string)meshGenKeys["outputFolder"]!;
+                Console.WriteLine(String.Format("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder));
             }
         }
     }
