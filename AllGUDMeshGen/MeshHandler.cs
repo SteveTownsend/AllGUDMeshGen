@@ -14,7 +14,8 @@ namespace AllGUD
     {
         private static string? meshGenLocation;
         private static IDictionary<string, ModelType> targetMeshes = new Dictionary<string, ModelType>();
-        private static ISet<FormKey> alternateTextureForms = new HashSet<FormKey>();
+        private static ISet<IWeaponGetter> alternateTextureWeapons = new HashSet<IWeaponGetter>();
+        private static ISet<IArmorAddonGetter> alternateTextureArmorAddons = new HashSet<IArmorAddonGetter>();
 
         // Check STAT records - rare case, maintain a list of plugins where it matters
         private static ISet<string> staticMods = new HashSet<string>
@@ -35,6 +36,33 @@ namespace AllGUD
             Shield
         };
 
+        enum WeaponType {
+            Unknown = 0,
+            OneHandMelee,
+            TwoHandMelee,
+            Shield,
+            TwoHandRange,
+            Staff
+        };
+
+        private static readonly IDictionary<ModelType, WeaponType> weaponTypeByModelType = new Dictionary<ModelType, WeaponType>
+        {
+            { ModelType.Unknown, WeaponType.Unknown },
+            { ModelType.Sword, WeaponType.OneHandMelee },
+            { ModelType.Dagger, WeaponType.OneHandMelee },
+            { ModelType.Mace, WeaponType.OneHandMelee },
+            { ModelType.Axe, WeaponType.OneHandMelee },
+            { ModelType.Staff, WeaponType.Staff },
+            { ModelType.TwoHandMelee, WeaponType.TwoHandMelee },
+            { ModelType.TwoHandRange, WeaponType.TwoHandRange },
+            { ModelType.Shield, WeaponType.Shield }
+        };
+
+        private static int countSkipped;
+        private static int countPatched;
+        private static int countGenerated;
+        private static int countFailed;
+
         private static bool AddMesh(string modelPath, ModelType modelType)
         {
             // Do not add the same model more than once - model reuse is common
@@ -46,7 +74,8 @@ namespace AllGUD
             return true;
         }
 
-        private static void RecordModel(FormKey record, ModelType modelType, IModelGetter model)
+        // returns true iff model has alternate textures
+        private static bool RecordModel(FormKey record, ModelType modelType, IModelGetter model)
         {
             // normalize the model path. Model paths always use the backslash character as separator
             string modelPath = model.File.ToLower();
@@ -59,8 +88,9 @@ namespace AllGUD
             if (model.AlternateTextures != null && model.AlternateTextures.Count > 0)
             {
                 Console.WriteLine("Form {0} has alternate textures", record.ToString());
-                alternateTextureForms.Add(record);
+                return true;
             }
+            return false;
         }
 
         private static void CollateWeapons()
@@ -133,7 +163,10 @@ namespace AllGUD
                 if (modelType == ModelType.Unknown)
                     continue;
 
-                RecordModel(weap.FormKey, modelType, weap.Model);
+                if (RecordModel(weap.FormKey, modelType, weap.Model))
+                {
+                    alternateTextureWeapons.Add(weap);
+                }
             }
         }
 
@@ -170,11 +203,17 @@ namespace AllGUD
                                 // process male and female cases
                                 if (armorAddon.WorldModel.Male != null)
                                 {
-                                    RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Male);
+                                    if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Male))
+                                    {
+                                        alternateTextureArmorAddons.Add(armorAddon);
+                                    }
                                 }
                                 if (armorAddon.WorldModel.Female != null)
                                 {
-                                    RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Female);
+                                    if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Female))
+                                    {
+                                        alternateTextureArmorAddons.Add(armorAddon);
+                                    }
                                 }
                             }
                         }
@@ -201,6 +240,106 @@ namespace AllGUD
             }
         }
 
+        private static ModelType FinalizeModelType(NifFile nif, string modelPath, ModelType modelType)
+        {
+            bool rightHanded = modelPath.Contains("Right.nif");
+            NiNode node = nif.GetHeader().NiNodeBlock(0);
+            // analyze 'Prn' in ExtraData for first block
+            var children = nif.StringExtraDataChildren(node, true);
+            foreach (NiStringExtraData extraData in children) using (extraData)
+            {
+                var refs = extraData.GetStringRefList();
+                if (refs.Count != 2)
+                    continue;
+                if (refs[0].copy() == "Prn")
+                {
+                    string tag = refs[1].copy();
+                    Console.WriteLine("Found Prn={0}", tag);
+                    if (modelType == ModelType.Unknown)
+                    {
+                        if (tag == "WeaponDagger")
+                        {
+                            modelType = ModelType.Dagger;
+                        }
+                        else if (tag == "WeaponSword")
+                        {
+                            modelType = ModelType.Sword;
+                        }
+                        else if (tag == "WeaponAxe")
+                        {
+                            modelType = ModelType.Axe;
+                        }
+                        else if (tag == "WeaponMace")
+                        {
+                            modelType = ModelType.Mace;
+                        }
+                        else if (tag == "WeaponStaff" && !rightHanded)
+                        {
+                            //Filter out meshes using DSR file naming convention.
+                            //Vanilla staves may have incorrect Prn, USP fixed Staff01
+                            modelType = ModelType.Staff;
+                        }
+                        else if (tag == "WeaponBack")
+                        {
+                            modelType = ModelType.TwoHandMelee;
+                        }
+                        else if (tag == "WeaponBow")
+                        {
+                            modelType = ModelType.TwoHandRange;
+                        }
+                        else if (tag == "SHIELD")
+                        {
+                            modelType = ModelType.Shield;
+                        }
+                    }
+                    else if (modelType != ModelType.Staff)
+                    // Sword of amazement brought this up. Staves can't share with OneHand meshes since they both use '*Left.nif'
+                    // So One Hand Weapon Node in the Prn overrides Keyword:WeaponTypeStaff
+                    {
+                        if (tag == "WeaponDagger")
+                        {
+                            modelType = ModelType.Dagger;
+                        }
+                        else if (tag == "WeaponSword")
+                        {
+                            modelType = ModelType.Sword;
+                        }
+                        else if (tag == "WeaponAxe")
+                        {
+                            modelType = ModelType.Axe;
+                        }
+                        else if (tag == "WeaponMace")
+                        {
+                            modelType = ModelType.Mace;
+                        }
+                    }
+                    break;
+                }
+            }
+            return modelType;
+        }
+
+        private static void GenerateMeshes(NifFile nif, string modelPath, ModelType modelType)
+        {
+            modelType = FinalizeModelType(nif, modelPath, modelType);
+
+            WeaponType weaponType = weaponTypeByModelType[modelType];
+            if (weaponType == WeaponType.Unknown)
+            {
+                ++countSkipped;
+            }
+            else
+            {
+                ++countPatched;
+            }
+
+            // static display only at present - start from template
+            using (NifFile transformed = TemplateFactory.CreateSSE("WeaponSword"))
+            {
+
+            }
+        }
+
         private static void TransformMeshes()
         {
             // no op if empty
@@ -221,8 +360,9 @@ namespace AllGUD
                 {
                     using (NifFile nif = new NifFile())
                     {
-                        Console.WriteLine("Process mesh from loose file {0}", originalFile);
+                        Console.WriteLine("Transform mesh from loose file {0}", originalFile);
                         nif.Load(originalFile);
+                        GenerateMeshes(nif, kv.Key, kv.Value);
                         looseDone.Add(kv.Key);
                     }
                 }
@@ -254,11 +394,14 @@ namespace AllGUD
                         using (Stream meshStream = new MemoryStream((int)bsaMesh.Size))
                         {
                             bsaMesh.CopyDataTo(meshStream);
-                            using (NifFile nif = new NifFile())
+                            // Load NIF from stream via String
+                            using (StreamReader reader = new StreamReader(meshStream))
                             {
-                                // TODO load NIF from MemoryStream
-                                // TODO transform mesh
-                                Console.WriteLine("Process mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                using (NifFile nif = new NifFile(reader.ReadToEnd()))
+                                {
+                                    Console.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                    GenerateMeshes(nif, rawPath, targetMeshes[rawPath]);
+                                }
                             }
                         }
                     }
