@@ -49,36 +49,33 @@ namespace AllGUD
             IDictionary<int, NiAVObject> patchTargets = new Dictionary<int, NiAVObject>();
             foreach (var childNode in childNodes)
             {
-                using (childNode)
+                var nodeBlock = nif.GetHeader().GetBlockById<NiAVObject>(childNode.index);
+                if (weapons.Contains(nodeBlock.name.copy()))
                 {
-                    var nodeBlock = nif.GetHeader().NiAVObjectBlock(childNode.index);
-                    if (weapons.Contains(nodeBlock.name.copy()))
-                    {
-                        // Mark for patching and remove from target list - if we patch here, the loop
-                        // range gets nuked
-                        weapons.Remove(nodeBlock.name.copy());
-                        patchTargets[childNode.index] = nodeBlock;
+                    // Mark for patching and remove from target list - if we patch here, the loop
+                    // range gets nuked
+                    weapons.Remove(nodeBlock.name.copy());
+                    patchTargets[childNode.index] = nodeBlock;
 
-                    }
-                    else
-                    {
-                        PatchWeaponNodes(nif, nif.GetHeader().NiNodeBlock(childNode.index), weapons);
-                    }
-                    foreach (var patchTarget in patchTargets)
-                    {
-                        NiAVObject newBlock = patchTarget.Value.Clone();
-                        newBlock.name = new NiStringRef(patchTarget.Value.name.copy() + "Armor");
-
-                        // record new block and add as a sibling of existing
-                        int newID = nif.GetHeader().AddBlock(newBlock);
-                        node.GetChildren().AddBlockRef(newID);
-
-                        Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                            patchTarget.Key, patchTarget.Value.name.copy(), newID, newBlock.name.copy());
-                    }
-                    if (weapons.Count == 0)
-                        break;
                 }
+                else
+                {
+                    PatchWeaponNodes(nif, nif.GetHeader().GetBlockById<NiNode>(childNode.index), weapons);
+                }
+                foreach (var patchTarget in patchTargets)
+                {
+                    NiAVObject newBlock = patchTarget.Value.Clone();
+                    newBlock.name = new NiStringRef(patchTarget.Value.name.copy() + "Armor");
+
+                    // record new block and add as a sibling of existing
+                    int newID = nif.GetHeader().AddBlock(newBlock);
+                    node.GetChildren().AddBlockRef(newID);
+
+                    Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
+                        patchTarget.Key, patchTarget.Value.name.copy(), newID, newBlock.name.copy());
+                }
+                if (weapons.Count == 0)
+                    break;
             }
         }
         private static void PatchSkeleton(string nifName)
@@ -120,7 +117,7 @@ namespace AllGUD
                     {
                         if (!confirmedHuman)
                         {
-                            NiNode node = nif.GetHeader().NiNodeBlock(blockID);
+                            NiNode node = nif.GetHeader().GetBlockById<NiNode>(blockID);
                             // scan block refs checking for Extra Data with species=human
                             var children = nif.StringExtraDataChildren(node, true);
                             foreach (NiStringExtraData extraData in children)

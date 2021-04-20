@@ -243,7 +243,7 @@ namespace AllGUD
         private static ModelType FinalizeModelType(NifFile nif, string modelPath, ModelType modelType)
         {
             bool rightHanded = modelPath.Contains("Right.nif");
-            NiNode node = nif.GetHeader().NiNodeBlock(0);
+            NiNode node = nif.GetHeader().GetBlockById<NiNode>(0);
             // analyze 'Prn' in ExtraData for first block
             var children = nif.StringExtraDataChildren(node, true);
             foreach (NiStringExtraData extraData in children)
