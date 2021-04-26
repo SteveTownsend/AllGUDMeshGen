@@ -36,7 +36,7 @@ namespace AllGUD
             Shield
         };
 
-        enum WeaponType {
+        internal enum WeaponType {
             Unknown = 0,
             OneHandMelee,
             TwoHandMelee,
@@ -60,7 +60,7 @@ namespace AllGUD
 
         private static int countSkipped;
         private static int countPatched;
-        private static int countGenerated;
+        internal static int countGenerated;
         private static int countFailed;
 
         private static bool AddMesh(string modelPath, ModelType modelType)
@@ -244,6 +244,11 @@ namespace AllGUD
         {
             bool rightHanded = modelPath.Contains("Right.nif");
             NiNode node = nif.GetHeader().GetBlockById<NiNode>(0);
+            if (node == null)
+            {
+                Console.WriteLine("Expected NiNode at offset 0 not found");
+                return ModelType.Unknown;
+            }
             // analyze 'Prn' in ExtraData for first block
             var children = nif.StringExtraDataChildren(node, true);
             foreach (NiStringExtraData extraData in children)
@@ -253,10 +258,9 @@ namespace AllGUD
                     var refs = extraData.GetStringRefList();
                     if (refs.Count != 2)
                         continue;
-                    if (refs[0].copy() == "Prn")
+                    if (refs[0].get() == "Prn")
                     {
-                        string tag = refs[1].copy();
-                        Console.WriteLine("Found Prn={0}", tag);
+                        string tag = refs[1].get();
                         if (modelType == ModelType.Unknown)
                         {
                             if (tag == "WeaponDagger")
@@ -329,13 +333,20 @@ namespace AllGUD
             WeaponType weaponType = weaponTypeByModelType[modelType];
             if (weaponType == WeaponType.Unknown)
             {
+                Console.WriteLine("Skip {0}, cannot categorize {0}", modelPath);
+                ++countSkipped;
+            }
+            else if (!ScriptLess.Configuration.IsNifValid(modelPath))
+            {
+                Console.WriteLine("Filters skip {0}", modelPath);
                 ++countSkipped;
             }
             else
             {
                 // TODO selective patching by weapon type would need a filter here
                 ++countPatched;
-                new NifTransformer(nif).Generate();
+                Console.WriteLine("\tTemplate: Special Edition");
+                new NifTransformer(nif, modelPath, modelType, weaponType).Generate();
             }
         }
 
@@ -390,13 +401,16 @@ namespace AllGUD
                         }
 
                         bsaDone.Add(rawPath, bsaFile);
-                        using (Stream meshStream = new MemoryStream((int)bsaMesh.Size))
+                        using (MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size))
                         {
                             bsaMesh.CopyDataTo(meshStream);
-                            // Load NIF from stream via String
+
+                            // Load NIF from stream via String - must rewind first
+                            byte[] bsaData = meshStream.ToArray();
+                            meshStream.Seek(0, SeekOrigin.Begin);
                             using (StreamReader reader = new StreamReader(meshStream))
                             {
-                                using (NifFile nif = new NifFile(reader.ReadToEnd()))
+                                using (NifFile nif = new NifFile(new vectoruchar(bsaData)))
                                 {
                                     Console.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
                                     GenerateMeshes(nif, rawPath, targetMeshes[rawPath]);

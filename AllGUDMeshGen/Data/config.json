@@ -1,17 +1,18 @@
 {
   "skeleton": {
     "inputFolder": "",
-    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Output/"
+    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Patcher/"
   },
   "meshGen": {
     "inputFolder": "j:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/meshes/",
-    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Output/meshes",
+    "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Patcher/meshes/",
     "oneHandedMelee": true,
     "twoHandedMelee": true,
     "shieldOnBack": true,
     "bowCrossbow": true,
     "staff": true,
     "mirrorLeftStaves": false,
-    "dynamicDisplay": false
+    "dynamicDisplay": false,
+    "nameFilter": ""
   }
 }
