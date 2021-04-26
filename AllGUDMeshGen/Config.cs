@@ -10,6 +10,7 @@ namespace AllGUD
         public string skeletonOutputFolder { get; }
         public string meshGenInputFolder { get; }
         public string meshGenOutputFolder { get; }
+        public string[] nameFilters { get; }
 
         public Config(string configFilePath)
         {
@@ -31,7 +32,26 @@ namespace AllGUD
                 meshGenInputFolder = (string)meshGenKeys["inputFolder"]!;
                 meshGenOutputFolder = (string)meshGenKeys["outputFolder"]!;
                 Console.WriteLine(String.Format("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder));
+                string nameFilter = (string)meshGenKeys["nameFilter"]!;
+                if (!String.IsNullOrEmpty(nameFilter))
+                {
+                    nameFilters = Array.ConvertAll(nameFilter.Split(','), d => d.ToLower());
+                }
+                else
+                {
+                    nameFilters = new string[0];
+                }
             }
+        }
+
+        public bool IsNifValid(string nifPath)
+        {
+            foreach (string filter in nameFilters)
+            {
+                if (!nifPath.Contains(filter))
+                    return false;
+            }
+            return true;
         }
     }
 }

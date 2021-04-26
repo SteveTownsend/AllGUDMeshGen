@@ -24,7 +24,7 @@ namespace AllGUD
             "UniqueWeaponsRedone.esp"
         };
 
-        enum ModelType {
+        internal enum ModelType {
             Unknown = 0,
             Sword,
             Dagger,
@@ -36,7 +36,7 @@ namespace AllGUD
             Shield
         };
 
-        enum WeaponType {
+        internal enum WeaponType {
             Unknown = 0,
             OneHandMelee,
             TwoHandMelee,
@@ -60,7 +60,7 @@ namespace AllGUD
 
         private static int countSkipped;
         private static int countPatched;
-        private static int countGenerated;
+        internal static int countGenerated;
         private static int countFailed;
 
         private static bool AddMesh(string modelPath, ModelType modelType)
@@ -243,77 +243,84 @@ namespace AllGUD
         private static ModelType FinalizeModelType(NifFile nif, string modelPath, ModelType modelType)
         {
             bool rightHanded = modelPath.Contains("Right.nif");
-            NiNode node = nif.GetHeader().NiNodeBlock(0);
+            NiNode node = nif.GetHeader().GetBlockById<NiNode>(0);
+            if (node == null)
+            {
+                Console.WriteLine("Expected NiNode at offset 0 not found");
+                return ModelType.Unknown;
+            }
             // analyze 'Prn' in ExtraData for first block
             var children = nif.StringExtraDataChildren(node, true);
-            foreach (NiStringExtraData extraData in children) using (extraData)
+            foreach (NiStringExtraData extraData in children)
             {
-                var refs = extraData.GetStringRefList();
-                if (refs.Count != 2)
-                    continue;
-                if (refs[0].copy() == "Prn")
+                using (extraData)
                 {
-                    string tag = refs[1].copy();
-                    Console.WriteLine("Found Prn={0}", tag);
-                    if (modelType == ModelType.Unknown)
+                    var refs = extraData.GetStringRefList();
+                    if (refs.Count != 2)
+                        continue;
+                    if (refs[0].get() == "Prn")
                     {
-                        if (tag == "WeaponDagger")
+                        string tag = refs[1].get();
+                        if (modelType == ModelType.Unknown)
                         {
-                            modelType = ModelType.Dagger;
+                            if (tag == "WeaponDagger")
+                            {
+                                modelType = ModelType.Dagger;
+                            }
+                            else if (tag == "WeaponSword")
+                            {
+                                modelType = ModelType.Sword;
+                            }
+                            else if (tag == "WeaponAxe")
+                            {
+                                modelType = ModelType.Axe;
+                            }
+                            else if (tag == "WeaponMace")
+                            {
+                                modelType = ModelType.Mace;
+                            }
+                            else if (tag == "WeaponStaff" && !rightHanded)
+                            {
+                                //Filter out meshes using DSR file naming convention.
+                                //Vanilla staves may have incorrect Prn, USP fixed Staff01
+                                modelType = ModelType.Staff;
+                            }
+                            else if (tag == "WeaponBack")
+                            {
+                                modelType = ModelType.TwoHandMelee;
+                            }
+                            else if (tag == "WeaponBow")
+                            {
+                                modelType = ModelType.TwoHandRange;
+                            }
+                            else if (tag == "SHIELD")
+                            {
+                                modelType = ModelType.Shield;
+                            }
                         }
-                        else if (tag == "WeaponSword")
+                        else if (modelType != ModelType.Staff)
+                        // Sword of amazement brought this up. Staves can't share with OneHand meshes since they both use '*Left.nif'
+                        // So One Hand Weapon Node in the Prn overrides Keyword:WeaponTypeStaff
                         {
-                            modelType = ModelType.Sword;
+                            if (tag == "WeaponDagger")
+                            {
+                                modelType = ModelType.Dagger;
+                            }
+                            else if (tag == "WeaponSword")
+                            {
+                                modelType = ModelType.Sword;
+                            }
+                            else if (tag == "WeaponAxe")
+                            {
+                                modelType = ModelType.Axe;
+                            }
+                            else if (tag == "WeaponMace")
+                            {
+                                modelType = ModelType.Mace;
+                            }
                         }
-                        else if (tag == "WeaponAxe")
-                        {
-                            modelType = ModelType.Axe;
-                        }
-                        else if (tag == "WeaponMace")
-                        {
-                            modelType = ModelType.Mace;
-                        }
-                        else if (tag == "WeaponStaff" && !rightHanded)
-                        {
-                            //Filter out meshes using DSR file naming convention.
-                            //Vanilla staves may have incorrect Prn, USP fixed Staff01
-                            modelType = ModelType.Staff;
-                        }
-                        else if (tag == "WeaponBack")
-                        {
-                            modelType = ModelType.TwoHandMelee;
-                        }
-                        else if (tag == "WeaponBow")
-                        {
-                            modelType = ModelType.TwoHandRange;
-                        }
-                        else if (tag == "SHIELD")
-                        {
-                            modelType = ModelType.Shield;
-                        }
+                        break;
                     }
-                    else if (modelType != ModelType.Staff)
-                    // Sword of amazement brought this up. Staves can't share with OneHand meshes since they both use '*Left.nif'
-                    // So One Hand Weapon Node in the Prn overrides Keyword:WeaponTypeStaff
-                    {
-                        if (tag == "WeaponDagger")
-                        {
-                            modelType = ModelType.Dagger;
-                        }
-                        else if (tag == "WeaponSword")
-                        {
-                            modelType = ModelType.Sword;
-                        }
-                        else if (tag == "WeaponAxe")
-                        {
-                            modelType = ModelType.Axe;
-                        }
-                        else if (tag == "WeaponMace")
-                        {
-                            modelType = ModelType.Mace;
-                        }
-                    }
-                    break;
                 }
             }
             return modelType;
@@ -326,17 +333,20 @@ namespace AllGUD
             WeaponType weaponType = weaponTypeByModelType[modelType];
             if (weaponType == WeaponType.Unknown)
             {
+                Console.WriteLine("Skip {0}, cannot categorize {0}", modelPath);
+                ++countSkipped;
+            }
+            else if (!ScriptLess.Configuration.IsNifValid(modelPath))
+            {
+                Console.WriteLine("Filters skip {0}", modelPath);
                 ++countSkipped;
             }
             else
             {
+                // TODO selective patching by weapon type would need a filter here
                 ++countPatched;
-            }
-
-            // static display only at present - start from template
-            using (NifFile transformed = TemplateFactory.CreateSSE("WeaponSword"))
-            {
-
+                Console.WriteLine("\tTemplate: Special Edition");
+                new NifTransformer(nif, modelPath, modelType, weaponType).Generate();
             }
         }
 
@@ -391,13 +401,16 @@ namespace AllGUD
                         }
 
                         bsaDone.Add(rawPath, bsaFile);
-                        using (Stream meshStream = new MemoryStream((int)bsaMesh.Size))
+                        using (MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size))
                         {
                             bsaMesh.CopyDataTo(meshStream);
-                            // Load NIF from stream via String
+
+                            // Load NIF from stream via String - must rewind first
+                            byte[] bsaData = meshStream.ToArray();
+                            meshStream.Seek(0, SeekOrigin.Begin);
                             using (StreamReader reader = new StreamReader(meshStream))
                             {
-                                using (NifFile nif = new NifFile(reader.ReadToEnd()))
+                                using (NifFile nif = new NifFile(new vectoruchar(bsaData)))
                                 {
                                     Console.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
                                     GenerateMeshes(nif, rawPath, targetMeshes[rawPath]);

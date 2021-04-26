@@ -33,8 +33,8 @@ namespace AllGUD
         // save options set to simplify binary comparison of output vs Edit Script output
         public static readonly nifly.NifSaveOptions saveOptions = new NifSaveOptions()
         {
-            optimize = false,
-            sortBlocks = false
+            optimize = true,
+            sortBlocks = true
         };
 
         public static void CheckDestinationExists(string destDir)
@@ -63,6 +63,6 @@ namespace AllGUD
 
             SkeletonHandler.PatchAllHuman();
             MeshHandler.Generate();
-        }
+         }
     }
 }
