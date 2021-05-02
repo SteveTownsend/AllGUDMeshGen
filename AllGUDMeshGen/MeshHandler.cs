@@ -12,10 +12,32 @@ namespace AllGUD
 {
     internal class MeshHandler
     {
-        private static string? meshGenLocation;
-        private static IDictionary<string, ModelType> targetMeshes = new Dictionary<string, ModelType>();
-        private static ISet<IWeaponGetter> alternateTextureWeapons = new HashSet<IWeaponGetter>();
-        private static ISet<IArmorAddonGetter> alternateTextureArmorAddons = new HashSet<IArmorAddonGetter>();
+        private class TargetMeshInfo
+        {
+            public readonly string originalName;
+            public readonly ModelType modelType;
+            public TargetMeshInfo(string name, ModelType model)
+            {
+                originalName = name;
+                modelType = model;
+            }
+        }
+        private string? meshGenLocation;
+        private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
+        private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();
+        private IDictionary<string, IList<IArmorAddonGetter>> alternateTextureArmorAddons = new Dictionary<string, IList<IArmorAddonGetter>>();
+
+        private class AlternateTextureInfo
+        {
+            public string nifPath { get; }
+            public ModelType modelType { get; }
+
+            public AlternateTextureInfo(string path, ModelType model)
+            {
+                nifPath = path;
+                modelType = model;
+            }
+        };
 
         // Check STAT records - rare case, maintain a list of plugins where it matters
         private static ISet<string> staticMods = new HashSet<string>
@@ -58,42 +80,54 @@ namespace AllGUD
             { ModelType.Shield, WeaponType.Shield }
         };
 
-        private static int countSkipped;
-        private static int countPatched;
-        internal static int countGenerated;
-        private static int countFailed;
+        private int countSkipped;
+        private int countPatched;
+        internal int countGenerated;
+        private int countFailed;
 
-        private static bool AddMesh(string modelPath, ModelType modelType)
+        private int alternateTextureModels;
+
+        internal MeshHandler(string location)
         {
+            meshGenLocation = location;
+        }
+
+        private bool AddMesh(string modelPath, ModelType modelType)
+        {
+            if (!ScriptLess.Configuration.IsNifValid(modelPath))
+            {
+                Console.WriteLine("Filters skip {0}", modelPath);
+                ++countSkipped;
+                return false;
+            }
             // Do not add the same model more than once - model reuse is common
-            if (targetMeshes.ContainsKey(modelPath))
+            string normalizedPath = modelPath.ToLower();
+            if (targetMeshes.ContainsKey(normalizedPath))
             {
                 return false;
             }
-            targetMeshes.Add(modelPath, modelType);
+            targetMeshes.Add(normalizedPath, new TargetMeshInfo(modelPath, modelType));
             return true;
         }
 
         // returns true iff model has alternate textures
-        private static bool RecordModel(FormKey record, ModelType modelType, IModelGetter model)
+        private bool RecordModel(FormKey record, ModelType modelType, IModelGetter model)
         {
-            // normalize the model path. Model paths always use the backslash character as separator
-            string modelPath = model.File.ToLower();
+            string modelPath = model.File;
             if (AddMesh(modelPath, modelType))
             {
-                Console.WriteLine("Model {0} with type {1} added as normalized form {2}", model.File, modelType.ToString(), modelPath);
+                Console.WriteLine("Model {0} with type {1} added", modelPath, modelType.ToString());
             }
 
             // record weapons with alternate textures for patching later in the workflow
             if (model.AlternateTextures != null && model.AlternateTextures.Count > 0)
             {
-                Console.WriteLine("Form {0} has alternate textures", record.ToString());
                 return true;
             }
             return false;
         }
 
-        private static void CollateWeapons()
+        private void CollateWeapons()
         {
             foreach (var weap in ScriptLess.PatcherState.LoadOrder.PriorityOrder.WinningOverrides<IWeaponGetter>())
             {
@@ -116,7 +150,7 @@ namespace AllGUD
                         }
                         if (keyword.FormKey == SSEForms.Skyrim.Keyword.WeapTypeSword.FormKey)
                         {
-                            modelType = ModelType.Dagger;
+                            modelType = ModelType.Sword;
                             break;
                         }
                         if (keyword.FormKey == SSEForms.Skyrim.Keyword.WeapTypeWarAxe.FormKey)
@@ -165,12 +199,18 @@ namespace AllGUD
 
                 if (RecordModel(weap.FormKey, modelType, weap.Model))
                 {
-                    alternateTextureWeapons.Add(weap);
+                    Console.WriteLine("WEAP {0} has alternate textures", weap.FormKey);
+                    if (!alternateTextureWeapons.ContainsKey(weap.Model!.File))
+                    {
+                        alternateTextureWeapons[weap.Model.File] = new List<IWeaponGetter>();
+                    }
+                    alternateTextureWeapons[weap.Model.File].Add(weap);
+                    AddMesh(weap.Model!.File, modelType);
                 }
             }
         }
 
-        private static void CollateShields()
+        private void CollateShields()
         {
             foreach (var armor in ScriptLess.PatcherState.LoadOrder.PriorityOrder.WinningOverrides<IArmorGetter>())
             {
@@ -201,18 +241,32 @@ namespace AllGUD
                             if (armorAddon != null && armorAddon.WorldModel != null)
                             {
                                 // process male and female cases
+                                string currentPath = "";
                                 if (armorAddon.WorldModel.Male != null)
                                 {
+                                    currentPath = armorAddon.WorldModel.Male.File;
                                     if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Male))
                                     {
-                                        alternateTextureArmorAddons.Add(armorAddon);
+                                        Console.WriteLine("ARMA {0} has alternate textures in Male Model", armorAddon.FormKey);
+                                        if (!alternateTextureArmorAddons.ContainsKey(armorAddon.WorldModel.Male.File))
+                                        {
+                                            alternateTextureArmorAddons[armorAddon.WorldModel.Male.File] = new List<IArmorAddonGetter>();
+                                        }
+                                        alternateTextureArmorAddons[armorAddon.WorldModel.Male.File].Add(armorAddon);
+                                        AddMesh(armorAddon.WorldModel.Male.File, ModelType.Shield);
                                     }
                                 }
-                                if (armorAddon.WorldModel.Female != null)
+                                if (armorAddon.WorldModel.Female != null && armorAddon.WorldModel.Female.File != currentPath)
                                 {
                                     if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Female))
                                     {
-                                        alternateTextureArmorAddons.Add(armorAddon);
+                                        Console.WriteLine("ARMA {0} has alternate textures in Female Model", armorAddon.FormKey);
+                                        if (!alternateTextureArmorAddons.ContainsKey(armorAddon.WorldModel.Female.File))
+                                        {
+                                            alternateTextureArmorAddons[armorAddon.WorldModel.Female.File] = new List<IArmorAddonGetter>();
+                                        }
+                                        alternateTextureArmorAddons[armorAddon.WorldModel.Female.File].Add(armorAddon);
+                                        AddMesh(armorAddon.WorldModel.Female.File, ModelType.Shield);
                                     }
                                 }
                             }
@@ -221,7 +275,7 @@ namespace AllGUD
                 }
             }
         }
-        private static void CollateStatics()
+        private void CollateStatics()
         {
             foreach (var target in ScriptLess.PatcherState.LoadOrder.PriorityOrder.WinningOverrides<IStaticGetter>().
                 Where(stat => staticMods.Contains(stat.FormKey.ModKey.FileName)))
@@ -230,7 +284,8 @@ namespace AllGUD
                 if (target == null || target.Model == null)
                     continue;
                 string modelPath = target.Model.File.ToLower();
-                if (modelPath.Contains("weapon") || modelPath.Contains("armor"))
+                if (modelPath.Contains("weapon", StringComparison.OrdinalIgnoreCase) ||
+                    modelPath.Contains("armor", StringComparison.OrdinalIgnoreCase))
                 {
                     if (AddMesh(modelPath, ModelType.Unknown))
                     {
@@ -240,17 +295,18 @@ namespace AllGUD
             }
         }
 
-        private static ModelType FinalizeModelType(NifFile nif, string modelPath, ModelType modelType)
+        private ModelType FinalizeModelType(NifFile nif, string modelPath, ModelType modelType)
         {
-            bool rightHanded = modelPath.Contains("Right.nif");
-            NiNode node = nif.GetHeader().GetBlockById<NiNode>(0);
+            bool rightHanded = modelPath.Contains("Right.nif", StringComparison.OrdinalIgnoreCase);
+            using var header = nif.GetHeader();
+            NiNode? node = header.GetBlockById(0) as NiNode;
             if (node == null)
             {
                 Console.WriteLine("Expected NiNode at offset 0 not found");
                 return ModelType.Unknown;
             }
             // analyze 'Prn' in ExtraData for first block
-            var children = nif.StringExtraDataChildren(node, true);
+            using var children = nif.StringExtraDataChildren(node, true);
             foreach (NiStringExtraData extraData in children)
             {
                 using (extraData)
@@ -258,9 +314,11 @@ namespace AllGUD
                     var refs = extraData.GetStringRefList();
                     if (refs.Count != 2)
                         continue;
-                    if (refs[0].get() == "Prn")
+                    using NiStringRef refKey = refs[0];
+                    if (refKey.get() == "Prn")
                     {
-                        string tag = refs[1].get();
+                        using NiStringRef refValue = refs[1];
+                        string tag = refValue.get();
                         if (modelType == ModelType.Unknown)
                         {
                             if (tag == "WeaponDagger")
@@ -298,7 +356,7 @@ namespace AllGUD
                                 modelType = ModelType.Shield;
                             }
                         }
-                        else if (modelType != ModelType.Staff)
+                        else if (modelType == ModelType.Staff)
                         // Sword of amazement brought this up. Staves can't share with OneHand meshes since they both use '*Left.nif'
                         // So One Hand Weapon Node in the Prn overrides Keyword:WeaponTypeStaff
                         {
@@ -326,31 +384,169 @@ namespace AllGUD
             return modelType;
         }
 
-        private static void GenerateMeshes(NifFile nif, string modelPath, ModelType modelType)
+        private void GenerateMeshes(NifFile nif, string originalPath, ModelType modelType)
         {
-            modelType = FinalizeModelType(nif, modelPath, modelType);
+            try
+            {
+                modelType = FinalizeModelType(nif, originalPath, modelType);
 
-            WeaponType weaponType = weaponTypeByModelType[modelType];
-            if (weaponType == WeaponType.Unknown)
-            {
-                Console.WriteLine("Skip {0}, cannot categorize {0}", modelPath);
-                ++countSkipped;
+                WeaponType weaponType = weaponTypeByModelType[modelType];
+                if (weaponType == WeaponType.Unknown)
+                {
+                    Console.WriteLine("Skip {0}, cannot categorize {0}", originalPath);
+                    ++countSkipped;
+                }
+                else
+                {
+                    // TODO selective patching by weapon type would need a filter here
+                    ++countPatched;
+                    Console.WriteLine("\tTemplate: Special Edition");
+                    using NifTransformer transformer = new NifTransformer(this, nif, originalPath, modelType, weaponType);
+                    transformer.Generate();
+                }
             }
-            else if (!ScriptLess.Configuration.IsNifValid(modelPath))
+            catch (Exception e)
             {
-                Console.WriteLine("Filters skip {0}", modelPath);
-                ++countSkipped;
-            }
-            else
-            {
-                // TODO selective patching by weapon type would need a filter here
-                ++countPatched;
-                Console.WriteLine("\tTemplate: Special Edition");
-                new NifTransformer(nif, modelPath, modelType, weaponType).Generate();
+                ++countFailed;
+                Console.WriteLine("Exception processing {0}: {1}", originalPath, e.GetBaseException());
             }
         }
 
-        private static void TransformMeshes()
+        // ALternate Textures processing first generates a brand-new base mesh that embeds the alternate textures for this record. This
+        // new mesh is referenced in a record override in Synthesis.esp. It is named using the EditorID of the record to distinguish from the
+        // original mesh. Once this new AllGUD-friendly mesh is on disk, it is used as a source for the regular mesh generation process to
+        // complete the picture for this record. The original mesh is also processed: there may be records that use it without Alternate Textures.
+        private string AlternateTextureMeshName(string nifPath, ISkyrimMajorRecordGetter record, bool isMale)
+        {
+            string newNif = Path.GetDirectoryName(nifPath) + '\\' + record.EditorID;
+            if (!isMale)
+                newNif += "Female";
+            newNif += ".nif";
+            Console.WriteLine("Alternate Texture set found for {0} for model {1}, create Alt Textures mesh {2}",
+                record.FormKey, nifPath, newNif);
+            return newNif;
+        }
+
+        private IDictionary<string, NifFile> GenerateAlternateWeaponMeshes(
+            NifFile originalNif, string modelPath, IList<IWeaponGetter> weapons, ModelType modelType)
+        {
+            IDictionary<string, NifFile> result = new Dictionary<string, NifFile>();
+            foreach (IWeaponGetter weapon in weapons)
+            {
+                if (weapon.Model != null && weapon.Model.AlternateTextures != null)
+                {
+                    string model = weapon.Model.File;
+                    bool isMale = true;
+                    string newPath = AlternateTextureMeshName(model, weapon, isMale);
+                    var newWeapon = ScriptLess.PatcherState.PatchMod.Weapons.GetOrAddAsOverride(weapon);
+                    newWeapon.Model!.File = newPath;
+                    using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
+                        this, originalNif, weapon.Model.AlternateTextures, modelPath, newPath);
+                    NifFile newNif = alternateTextureRemover.Execute();
+                    newWeapon.Model!.File = newPath;
+                    newWeapon.Model!.AlternateTextures = null;
+                    result[newPath] = newNif;
+                }
+            }
+            // Original model also needs AllGUD-friendly variants
+            result[modelPath] = originalNif;
+            return result;
+        }
+
+        private IDictionary<string, NifFile> GenerateAlternateArmorAddonMeshes(
+            NifFile originalNif, string modelPath, IList<IArmorAddonGetter> armorAddons, ModelType modelType)
+        {
+            IDictionary<string, NifFile> result = new Dictionary<string, NifFile>();
+            foreach (IArmorAddonGetter armorAddon in armorAddons)
+            {
+                if (armorAddon.WorldModel != null)
+                {
+                    string maleNif = "";
+                    bool isMale = true;
+                    if (armorAddon.WorldModel.Male != null)
+                    {
+                        maleNif = armorAddon.WorldModel.Male.File;
+                        if (!String.IsNullOrEmpty(maleNif) && armorAddon.WorldModel.Male.AlternateTextures != null)
+                        {
+                            string newPath = AlternateTextureMeshName(maleNif, armorAddon, isMale);
+                            using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
+                                this, originalNif, armorAddon.WorldModel.Male.AlternateTextures, modelPath, newPath);
+                            NifFile newNif = alternateTextureRemover.Execute();
+
+                            var newArmorAddon = ScriptLess.PatcherState.PatchMod.ArmorAddons.GetOrAddAsOverride(armorAddon);
+                            newArmorAddon.WorldModel!.Male!.File = newPath;
+                            newArmorAddon.WorldModel!.Male!.AlternateTextures = null;
+
+                            result[newPath] = newNif;
+                        }
+                    }
+                    isMale = false;
+                    if (armorAddon.WorldModel.Female != null && armorAddon.WorldModel.Female.AlternateTextures != null)
+                    {
+                        string femaleNif = armorAddon.WorldModel.Female.File;
+                        if (!String.IsNullOrEmpty(femaleNif) && maleNif != femaleNif)
+                        {
+                            string newPath = AlternateTextureMeshName(femaleNif, armorAddon, isMale);
+                            using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
+                                this, originalNif, armorAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
+                            NifFile newNif = alternateTextureRemover.Execute();
+
+                            var newArmorAddon = ScriptLess.PatcherState.PatchMod.ArmorAddons.GetOrAddAsOverride(armorAddon);
+                            newArmorAddon.WorldModel!.Female!.File = newPath;
+                            newArmorAddon.WorldModel!.Female!.AlternateTextures = null;
+
+                            result[newPath] = newNif;
+                        }
+                    }
+                }
+            }
+            // Original model also needs AllGUD-friendly variants
+            result[modelPath] = originalNif;
+            return result;
+        }
+
+        private IDictionary<string, NifFile> GenerateAlternateTextureMeshes(NifFile originalNif, string nifPath, ModelType modelType)
+        {
+            IList<IWeaponGetter>? weapons;
+            if (alternateTextureWeapons.TryGetValue(nifPath, out weapons) && weapons != null)
+            {
+                var mapped = GenerateAlternateWeaponMeshes(originalNif, nifPath, weapons, modelType);
+                if (mapped != null && mapped.Count > 0)
+                {
+                    alternateTextureModels += mapped.Count - 1;     // exclude the input
+                    return mapped;
+                }
+            }
+            IList<IArmorAddonGetter>? armorAddons;
+            if (alternateTextureArmorAddons.TryGetValue(nifPath, out armorAddons) && armorAddons != null)
+            {
+                var mapped = GenerateAlternateArmorAddonMeshes(originalNif, nifPath, armorAddons, modelType);
+                if (mapped != null && mapped.Count > 0)
+                {
+                    alternateTextureModels += mapped.Count - 1;     // exclude the input
+                    return mapped;
+                }
+            }
+            // If no alternates found, we must still process the input mesh
+            IDictionary<string, NifFile> result = new Dictionary<string, NifFile>();
+            result[nifPath] = originalNif;
+            return result;
+        }
+
+        private IDictionary<string, NifFile> CheckLooseFileAlternateTextures(string nifOriginalPath, ModelType modelType, string originalFile)
+        {
+            NifFile originalNif = new NifFile();
+            originalNif.Load(originalFile);
+            return GenerateAlternateTextureMeshes(originalNif, nifOriginalPath, modelType);
+        }
+
+        private IDictionary<string, NifFile> CheckBSABytesAlternateTextures(string nifOriginalPath, ModelType modelType, vectoruchar bsaBytes)
+        {
+            NifFile originalNif = new NifFile(bsaBytes);
+            return GenerateAlternateTextureMeshes(originalNif, nifOriginalPath, modelType);
+        }
+
+        internal void TransformMeshes()
         {
             // no op if empty
             if (targetMeshes.Count == 0)
@@ -368,13 +564,17 @@ namespace AllGUD
                 string originalFile = ScriptLess.Configuration.meshGenInputFolder + kv.Key;
                 if (File.Exists(originalFile))
                 {
-                    using (NifFile nif = new NifFile())
+                    Console.WriteLine("Transform mesh from loose file {0}", originalFile);
+
+                    IDictionary<string, NifFile> nifs = CheckLooseFileAlternateTextures(kv.Value.originalName, kv.Value.modelType, originalFile);
+                    foreach (var pathNif in nifs)
                     {
-                        Console.WriteLine("Transform mesh from loose file {0}", originalFile);
-                        nif.Load(originalFile);
-                        GenerateMeshes(nif, kv.Key, kv.Value);
-                        looseDone.Add(kv.Key);
+                        using (pathNif.Value)
+                        {
+                            GenerateMeshes(pathNif.Value, pathNif.Key, kv.Value.modelType);
+                        }
                     }
+                    looseDone.Add(kv.Key);
                 }
                 else
                 {
@@ -391,58 +591,55 @@ namespace AllGUD
                 foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath, new ModKey()))
                 {
                     var bsaReader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
-                    foreach (var bsaMesh in bsaReader.Files.Where(candidate => bsaFiles.ContainsKey(candidate.Path)))
+                    foreach (var bsaMesh in bsaReader.Files.Where(candidate => bsaFiles.ContainsKey(candidate.Path.ToLower())))
                     {
-                        string rawPath = bsaFiles[bsaMesh.Path];
+                        string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
+                        TargetMeshInfo meshInfo = targetMeshes[rawPath];
                         if (bsaDone.ContainsKey(rawPath))
                         {
                             Console.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
                             continue;
                         }
 
-                        bsaDone.Add(rawPath, bsaFile);
-                        using (MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size))
-                        {
-                            bsaMesh.CopyDataTo(meshStream);
+                        using MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size);
+                        bsaMesh.CopyDataTo(meshStream);
 
-                            // Load NIF from stream via String - must rewind first
-                            byte[] bsaData = meshStream.ToArray();
-                            meshStream.Seek(0, SeekOrigin.Begin);
-                            using (StreamReader reader = new StreamReader(meshStream))
+                        // Load NIF from stream via String - must rewind first
+                        byte[] bsaData = meshStream.ToArray();
+                        using vectoruchar bsaBytes = new vectoruchar(bsaData);
+
+                        IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
+                        foreach (var pathNif in nifs)
+                        {
+                            using (pathNif.Value)
                             {
-                                using (NifFile nif = new NifFile(new vectoruchar(bsaData)))
-                                {
-                                    Console.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
-                                    GenerateMeshes(nif, rawPath, targetMeshes[rawPath]);
-                                }
+                                Console.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
                             }
                         }
+                        bsaDone.Add(rawPath, bsaFile);
                     }
                 }
             }
 
-            Console.WriteLine("Total meshes {0} - {1} Loose, {2} in BSA", targetMeshes.Count, looseDone.Count, bsaDone.Count);
-            foreach (var mesh in targetMeshes.Where(kv => !looseDone.Contains(kv.Key) && !bsaDone.ContainsKey(kv.Key)))
+            var missingFiles = targetMeshes.Where(kv => !looseDone.Contains(kv.Key) && !bsaDone.ContainsKey(kv.Key)).ToList();
+            foreach (var mesh in missingFiles)
             {
-                Console.WriteLine("Mesh {0} not found loose or in BSA", mesh.Key);
+                Console.WriteLine("Referenced Mesh {0} not found loose or in BSA", mesh.Key);
             }
+            Console.WriteLine("{0} total meshes: found {1} Loose, {2} in BSA, {3} missing files",
+                targetMeshes.Count, looseDone.Count, bsaDone.Count, missingFiles.Count);
+            Console.WriteLine("Generated {0} with {1} for Alternate Textures, Patched {2}, Skipped {3}, Failed {4}",
+                countGenerated, alternateTextureModels, countPatched, countSkipped, countFailed);
         }
 
         // Mesh Generation logic from AllGUD Weapon Mesh Generator.pas
-        public static void Generate()
+        internal void Analyze()
         {
-            // determine the file path for meshes
-            meshGenLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.meshGenInputFolder) ?
-                ScriptLess.PatcherState!.DataFolderPath : ScriptLess.Configuration.meshGenInputFolder;
-            Console.WriteLine("Process meshes relative to {0}", meshGenLocation);
-
             // inventory the meshes to be transformed
             CollateWeapons();
             CollateShields();
             CollateStatics();
-
-            // transform the meshes
-            TransformMeshes();
         }
     }
 }
