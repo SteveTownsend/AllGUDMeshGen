@@ -6,13 +6,13 @@
   "meshGen": {
     "inputFolder": "j:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/meshes/",
     "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Patcher/meshes/",
-    "oneHandedMelee": true,
-    "twoHandedMelee": true,
-    "shieldOnBack": true,
-    "bowCrossbow": true,
-    "staff": true,
-    "mirrorLeftStaves": false,
-    "dynamicDisplay": false,
+    //"oneHandedMelee": true,
+    //"twoHandedMelee": true,
+    //"shieldOnBack": true,
+    //"bowCrossbow": true,
+    //"staff": true,
+    "mirrorStaves": true,
+    //"dynamicDisplay": false,
     "nameFilter": ""
   }
 }

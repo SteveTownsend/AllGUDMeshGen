@@ -10,6 +10,8 @@ namespace AllGUD
         private static string? skeletonMeshLocation;
         private static readonly string skeletonMeshFolder = "meshes/actors/character/";
         private static readonly string skeletonMeshFilter = "*skeleton*.nif";
+        private static niflycpp.BlockCache? blockCache;
+        private static NiHeader? header;
 
         // patchable Nodes
         private static ISet<string> weaponNodes = new HashSet<string>
@@ -48,24 +50,29 @@ namespace AllGUD
             if (node == null)
                 return;
 
-            var childNodes = node.GetChildren().GetRefs();
+            using var children = node.GetChildren();
+            using var childNodes = children.GetRefs();
             IDictionary<int, NiAVObject> patchTargets = new Dictionary<int, NiAVObject>();
             foreach (var childNode in childNodes)
             {
-                var nodeBlock = nif.GetHeader().GetBlockById<NiAVObject>(childNode.index);
-                if (nodeBlock != null)
+                using (childNode)
                 {
-                    if (weapons.Contains(nodeBlock.name.get()))
+                    NiAVObject nodeBlock = blockCache!.EditableBlockById<NiAVObject>(childNode.index);
+                    if (nodeBlock != null)
                     {
-                        // Mark for patching and remove from target list - if we patch here, the loop
-                        // range gets nuked
-                        weapons.Remove(nodeBlock.name.get());
-                        patchTargets[childNode.index] = nodeBlock;
+                        using var blockName = nodeBlock.name;
+                        if (weapons.Contains(blockName.get()))
+                        {
+                            // Mark for patching and remove from target list - if we patch here, the loop
+                            // range gets nuked
+                            weapons.Remove(blockName.get());
+                            patchTargets[childNode.index] = nodeBlock;
 
-                    }
-                    else
-                    {
-                        PatchWeaponNodes(nif, nif.GetHeader().GetBlockById<NiNode>(childNode.index), weapons);
+                        }
+                        else
+                        {
+                            PatchWeaponNodes(nif, (NiNode)nodeBlock, weapons);
+                        }
                     }
                 }
                 if (weapons.Count == 0)
@@ -73,15 +80,16 @@ namespace AllGUD
             }
             foreach (var patchTarget in patchTargets)
             {
-                NiAVObject newBlock = patchTarget.Value.Clone();
-                newBlock.name = new NiStringRef(patchTarget.Value.name.get() + "Armor");
+                using var oldName = patchTarget.Value.name;
+                string newName = oldName.get() + "Armor";
+                patchTarget.Value.name = new NiStringRef(newName);
 
                 // record new block and add as a sibling of existing
-                int newID = nif.GetHeader().AddBlock(newBlock);
+                int newID = header!.AddBlock(patchTarget.Value);
                 node.GetChildren().AddBlockRef(newID);
 
                 Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                    patchTarget.Key, patchTarget.Value.name.get(), newID, newBlock.name.get());
+                    patchTarget.Key, oldName.get(), newID, newName);
             }
         }
         private static void PatchSkeleton(string nifName)
@@ -90,76 +98,83 @@ namespace AllGUD
             using (NifFile nif = new NifFile())
             {
                 nif.Load(nifName);
-                ISet<string> headerStrings = new HashSet<string>();
-                for (int strId = 0; strId < nif.GetHeader().GetStringCount(); ++strId)
+                using (blockCache = new niflycpp.BlockCache(nif.GetHeader()))
                 {
-                    headerStrings.Add(nif.GetHeader().GetStringById(strId));
-                }
-                ISet<string> patchedNodes = new HashSet<string>(skeletonPatches);
-                patchedNodes.IntersectWith(headerStrings);
-                if (skeletonPatches.Count == patchedNodes.Count)
-                {
-                    Console.WriteLine("This Skeleton already has the required AllGUD Armor Nodes", nifName);
-                    return;
-                }
-                if (!skeletonValid.IsSubsetOf(headerStrings))
-                {
-                    Console.WriteLine("This skeleton is missing one or more required Nodes ", nifName);
-                }
-                // Add missing required strings from patch node list
-                ISet<string> nodesToAdd = new HashSet<string>(skeletonPatches);
-                nodesToAdd.ExceptWith(patchedNodes);
-                foreach (string patchNode in nodesToAdd)
-                {
-                    Console.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
-                    nif.GetHeader().AddOrFindStringId(patchNode);
-                }
-                // iterate blocks in the NIF
-                bool confirmedHuman = false;
-                for (int blockID = 0; blockID < nif.GetHeader().GetNumBlocks(); ++blockID)
-                {
-                    string blockType = nif.GetHeader().GetBlockTypeStringById(blockID);
-                    if (blockType == "NiNode")
+                    header = blockCache.Header;
+                    if (header == null)
+                        return;
+                    ISet<string> headerStrings = new HashSet<string>();
+                    for (int strId = 0; strId < header.GetStringCount(); ++strId)
                     {
-                        if (!confirmedHuman)
+                        headerStrings.Add(header.GetStringById(strId));
+                    }
+                    ISet<string> patchedNodes = new HashSet<string>(skeletonPatches);
+                    patchedNodes.IntersectWith(headerStrings);
+                    if (skeletonPatches.Count == patchedNodes.Count)
+                    {
+                        Console.WriteLine("This Skeleton already has the required AllGUD Armor Nodes", nifName);
+                        return;
+                    }
+                    if (!skeletonValid.IsSubsetOf(headerStrings))
+                    {
+                        Console.WriteLine("This skeleton is missing one or more required Nodes ", nifName);
+                    }
+                    // Add missing required strings from patch node list
+                    ISet<string> nodesToAdd = new HashSet<string>(skeletonPatches);
+                    nodesToAdd.ExceptWith(patchedNodes);
+                    foreach (string patchNode in nodesToAdd)
+                    {
+                        Console.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
+                        header.AddOrFindStringId(patchNode);
+                    }
+                    // iterate blocks in the NIF
+                    bool confirmedHuman = false;
+                    for (int blockID = 0; blockID < header.GetNumBlocks(); ++blockID)
+                    {
+                        string blockType = header.GetBlockTypeStringById(blockID);
+                        if (blockType == "NiNode")
                         {
-                            NiNode node = nif.GetHeader().GetBlockById<NiNode>(blockID);
-                            if (node != null)
+                            if (!confirmedHuman)
                             {
-                                // scan block refs checking for Extra Data with species=human
-                                var children = nif.StringExtraDataChildren(node, true);
-                                foreach (NiStringExtraData extraData in children)
+                                NiNode node = blockCache.EditableBlockById<NiNode>(blockID);
+                                if (node != null)
                                 {
-                                    using (extraData)
+                                    // scan block refs checking for Extra Data with species=human
+                                    using var children = nif.StringExtraDataChildren(node, true);
+                                    foreach (NiStringExtraData extraData in children)
                                     {
-                                        var refs = extraData.GetStringRefList();
-                                        if (refs.Count != 2)
-                                            continue;
-                                        if (refs[0].get() == "species" && refs[1].get() == "Human")
+                                        using (extraData)
                                         {
-                                            Console.WriteLine("This Skeleton is confirmed to be Human");
-                                            confirmedHuman = true;
-                                            break;
+                                            using var refs = extraData.GetStringRefList();
+                                            if (refs.Count != 2)
+                                                continue;
+                                            using var refKey = refs[0];
+                                            using var refValue = refs[1];
+                                            if (refKey.get() == "species" && refValue.get() == "Human")
+                                            {
+                                                Console.WriteLine("This Skeleton is confirmed to be Human");
+                                                confirmedHuman = true;
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                if (!confirmedHuman)
-                                    break;
+                                    if (!confirmedHuman)
+                                        break;
 
-                                // find child weapon nodes in the graph
-                                ISet<string> targets = new HashSet<string>(weaponNodes);
-                                PatchWeaponNodes(nif, node, targets);
-                                if (targets.Count < weaponNodes.Count)
-                                {
-                                    string newNif = Path.GetFileName(nifName);
-                                    string relativePath = Path.GetRelativePath(skeletonMeshLocation!, Path.GetDirectoryName(nifName)!);
-                                    string destFolder = ScriptLess.Configuration?.skeletonOutputFolder + skeletonMeshFolder + relativePath;
-                                    ScriptLess.CheckDestinationExists(destFolder);
-                                    newNif = Path.Join(destFolder, newNif);
-                                    Console.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                    nif.Save(newNif, ScriptLess.saveOptions);
+                                    // find child weapon nodes in the graph
+                                    ISet<string> targets = new HashSet<string>(weaponNodes);
+                                    PatchWeaponNodes(nif, node, targets);
+                                    if (targets.Count < weaponNodes.Count)
+                                    {
+                                        string newNif = Path.GetFileName(nifName);
+                                        string relativePath = Path.GetRelativePath(skeletonMeshLocation!, Path.GetDirectoryName(nifName)!);
+                                        string destFolder = ScriptLess.Configuration?.skeletonOutputFolder + skeletonMeshFolder + relativePath;
+                                        newNif = Path.Join(destFolder, newNif);
+                                        Console.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
+                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
@@ -168,7 +183,7 @@ namespace AllGUD
         }
 
         // Skeleton Patcher logic from AllGUD Skeleton Patcher.pas
-        public static void PatchAllHuman()
+        public static void PatchIfHuman()
         {
             // determine the file path for meshes
             skeletonMeshLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.skeletonInputFolder) ?

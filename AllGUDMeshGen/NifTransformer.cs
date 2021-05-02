@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Collections.Generic;
 using nifly;
 using ModelType = AllGUD.MeshHandler.ModelType;
@@ -7,14 +8,16 @@ using WeaponType = AllGUD.MeshHandler.WeaponType;
 
 namespace AllGUD
 {
-    class NifTransformer
+    class NifTransformer : IDisposable
     {
         private static readonly string ScbTag = "scb";
         private static readonly string NonStickScbTag = "NonStickScb";
         private static readonly string MidBoneTag = "_MidBone";
 
+        MeshHandler meshHandler;
         NifFile nif;
         NifFile? destNif;
+        niflycpp.BlockCache blockCache;
         NiHeader header;
         NiHeader? destHeader;
         WeaponType nifWeapon;
@@ -23,21 +26,27 @@ namespace AllGUD
 
         bool meshHasController;
 
-        IDictionary<int, NiAVObject> rootChildren = new SortedDictionary<int, NiAVObject>();
-        ISet<int> deletedBlocks = new HashSet<int>();
+        ISet<int> rootChildIds = new SortedSet<int>();
 
-        internal NifTransformer(NifFile source, string modelPath, ModelType modelType, WeaponType weaponType)
+        internal NifTransformer(MeshHandler handler, NifFile source, string modelPath, ModelType modelType, WeaponType weaponType)
         {
+            meshHandler = handler;
             nif = source;
-            header = nif.GetHeader();
+            blockCache = new niflycpp.BlockCache(nif.GetHeader());
+            header = blockCache.Header;
             nifPath = modelPath;
             nifModel = modelType;
             nifWeapon = weaponType;
         }
 
+        public void Dispose()
+        {
+            blockCache.Dispose();
+        }
+
         private void UnskinShader(NiBlockRefNiShader shaderRef)
         {
-            NiShader shader = header.GetBlockById<NiShader>(shaderRef.index);
+            NiShader shader = blockCache.EditableBlockById<NiShader>(shaderRef.index);
             if (shader == null)
             {
                 Console.WriteLine("Expected NiShader at offset {0} not found", shaderRef.index);
@@ -48,24 +57,15 @@ namespace AllGUD
 
         private void ApplyTransformToChild(NiAVObject parent, NiAVObject child, int childId, bool isBow)
         {
-            MatTransform transform = new MatTransform();
-            MatTransform cTransform = child.transform;
-            MatTransform pTransform = parent.transform;
-            transform.scale = cTransform.scale * pTransform.scale;
-            Vector3 cTranslation = cTransform.translation;
-            Vector3 translation = new Vector3();
-
-            transform.translation = pTransform.rotation.opMult(cTransform.translation).opMult(pTransform.scale).opAdd(pTransform.translation);
-            Matrix3 rotation = pTransform.rotation.opMult(cTransform.rotation);
-            rotation.SetPrecision(4);
-            transform.rotation = rotation;
-
+            using MatTransform cTransform = child.transform;
+            using MatTransform pTransform = parent.transform;
+            using MatTransform transform = pTransform.ComposeTransforms(cTransform);
             child.transform = transform;
 
             // Don't do this for shapes, Don't remove Transforms of Shapes in case they need to be mirrored
             if (child.controllerRef != null && !child.controllerRef.IsEmpty())
             {
-                NiTransformController controller = header.GetBlockById<NiTransformController>(child.controllerRef.index);
+                NiTransformController controller = blockCache.EditableBlockById<NiTransformController>(child.controllerRef.index);
                 if (controller != null)
                 {
                     meshHasController = true;
@@ -84,26 +84,26 @@ namespace AllGUD
         private void TransformChildren(NiAVObject blockObj, int blockId, bool isBow)
         {
             ISet<int> childDone = new HashSet<int>();
-            var childNodes = blockObj.CopyChildRefs();
+            using var childNodes = blockObj.CopyChildRefs();
             foreach (var childNode in childNodes)
             {
-                if (childDone.Contains(childNode.index))
-                    continue;
-                childDone.Add(childNode.index);
-                var subBlock = header.GetBlockById<NiAVObject>(childNode.index);
-                if (subBlock == null)
-                    continue;
-                Console.WriteLine("\tApplying Transform of Block:{0} to its Child:{1}", blockId, childNode.index);
-                ApplyTransformToChild(blockObj, subBlock, childNode.index, isBow);
+                using (childNode)
+                {
+                    if (childDone.Contains(childNode.index))
+                        continue;
+                    childDone.Add(childNode.index);
+                    var subBlock = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                    if (subBlock == null)
+                        continue;
+                    Console.WriteLine("\tApplying Transform of Block:{0} to its Child:{1}", blockId, childNode.index);
+                    ApplyTransformToChild(blockObj, subBlock, childNode.index, isBow);
+                }
                 if (!isBow)
                 {
-                    MatTransform transform = new MatTransform();
-                    Matrix3 rotation = new Matrix3();
-                    // TODO check this - do we really clear only the first row?
-                    //		SrcBlock.EditValues['Transform\Rotation']    := '0.000000 0.000000 0.000000';
-                    rotation.Zero();
+                    using MatTransform transform = new MatTransform();
+                    using Matrix3 rotation = Matrix3.MakeRotation(0.0f, 0.0f, 0.0f);  // yaw, pitch, roll
                     transform.rotation = rotation;
-                    Vector3 translation = new Vector3();
+                    using Vector3 translation = new Vector3();
                     translation.Zero();
                     transform.translation = translation;
                     transform.scale = 1.0f;
@@ -115,23 +115,29 @@ namespace AllGUD
         private void TransformRootChild(NiAVObject blockObj, int blockId)
         {
             // Apply Transforms for all non-shapes. EXCEPT BONES
+            Console.WriteLine("\t\tRemoving Skin @ Block: {0}", blockId);
             if (!RemoveSkin(new HashSet<int>(), blockObj))
             {
                 // Don't do this for shapes, Don't remove Transforms of Shapes in case they need to be mirrored
-                if (!meshHasController && blockObj.controllerRef != null && !blockObj.controllerRef.IsEmpty())
+                if (!meshHasController && blockObj.controllerRef != null)
                 {
-                    NiTransformController controller = header.GetBlockById<NiTransformController>(blockObj.controllerRef.index);
-                    if (controller != null)
+                    using var controllerRef = blockObj.controllerRef;
+                    if (!controllerRef.IsEmpty())
                     {
-                        meshHasController = true;
-                        // TODO requires enhancement for dynamic display
-                    }
-                    else
-                    {
-                        Console.WriteLine("Expected NiTransformController at offset {0} not found", blockObj.controllerRef.index);
+                        NiTransformController controller = blockCache.EditableBlockById<NiTransformController>(controllerRef.index);
+                        if (controller != null)
+                        {
+                            meshHasController = true;
+                            // TODO requires enhancement for dynamic display
+                        }
+                        else
+                        {
+                            Console.WriteLine("Expected NiTransformController at offset {0} not found", controllerRef.index);
+                        }
                     }
                 }
-                bool isBow = blockObj.name.get().Contains(MidBoneTag);
+                using NiStringRef blockName = blockObj.name;
+                bool isBow = blockName.get().Contains(MidBoneTag);
 
                 // Non-trishape, FIND THE CHILDREN AND REMOVE THEIR SKIN!
                 TransformChildren(blockObj, blockId, isBow);
@@ -148,8 +154,7 @@ namespace AllGUD
             // Get the first partition, where Triangles and the rest is stored
             // Haven't seen any with multiple partitions.
             // Not sure how that would work, revisit if there's a problem.
-            var partition = skinPartition.partitions[0];
-            bsTriShape.SetTriangles(partition.triangles);
+            bsTriShape.SetTriangles(skinPartition.partitions[0].triangles);
 
             bsTriShape.UpdateBounds();
         }
@@ -157,9 +162,11 @@ namespace AllGUD
         private void TransformScale(NiShape parent, NiSkinInstance skinInstance)
         {
             // On the first bone, hope all bones have the same scale here! cause seriously, what the heck could you do if they weren't?
-            foreach (var boneRef in skinInstance.boneRefs.GetRefs())
+            using var skinBoneRefs = skinInstance.boneRefs;
+            using var boneRefs = skinBoneRefs.GetRefs();
+            foreach (var boneRef in boneRefs)
             {
-                var bone = header.GetBlockById<NiNode>(boneRef.index);
+                var bone = blockCache.EditableBlockById<NiNode>(boneRef.index);
                 if (bone != null)
                 {
                     MatTransform rootTransform = parent.transform;
@@ -169,9 +176,10 @@ namespace AllGUD
                 }
             }
 
-            if (!skinInstance.dataRef.IsEmpty())
+            using var dataRef = skinInstance.dataRef;
+            if (!dataRef.IsEmpty())
             {
-                NiSkinData skinData = header.GetBlockById<NiSkinData>(skinInstance.dataRef.index);
+                NiSkinData skinData = blockCache.EditableBlockById<NiSkinData>(dataRef.index);
                 if (skinData != null)
                 {
                     MatTransform rootTransform = parent.transform;
@@ -181,14 +189,12 @@ namespace AllGUD
                     {
                         rootTransform.scale *= skinData.bones[0].boneTransform.scale;
                     }
-                    deletedBlocks.Add(skinInstance.dataRef.index);
                 }
                 else
                 {
                     Console.WriteLine("Expected NiSkinData at offset {0} not found", skinInstance.dataRef.index);
                 }
             }
-            deletedBlocks.Add(parent.SkinInstanceRef().index);
         }
 
         private bool RemoveSkin(ISet<int> skinDone, NiAVObject blockObj)
@@ -196,16 +202,20 @@ namespace AllGUD
             if (!(blockObj is BSTriShape) && !(blockObj is NiTriShape) && !(blockObj is NiTriStrips))
             {
                 // Non-trishape, FIND THE CHILDREN AND REMOVE THEIR SKIN!
-                var childNodes = blockObj.CopyChildRefs();
+                using var childNodes = blockObj.CopyChildRefs();
                 foreach (var childNode in childNodes)
                 {
-                    if (skinDone.Contains(childNode.index))
-                        continue;
-                    skinDone.Add(childNode.index);
-                    var block = header.GetBlockById<NiAVObject>(childNode.index);
-                    if (block == null)
-                        continue;
-                    RemoveSkin(skinDone, block);
+                    using (childNode)
+                    {
+                        if (skinDone.Contains(childNode.index))
+                            continue;
+                        skinDone.Add(childNode.index);
+                        var block = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                        if (block == null)
+                            continue;
+                        Console.WriteLine("\t\tRemoving Skin @ Block: {0}", childNode.index);
+                        RemoveSkin(skinDone, block);
+                    }
                 }
                 return false;
             }
@@ -218,36 +228,37 @@ namespace AllGUD
                 if (niShape.HasShaderProperty())
                 {
                     // remove unnecessary skinning on bows.
-                    UnskinShader(niShape.ShaderPropertyRef());
+                    using var shaderRef = niShape.ShaderPropertyRef();
+                    UnskinShader(shaderRef);
                 }
                 // Remove skin from BSTriShape
                 if (niShape.HasSkinInstance())
                 {
                     niShape.SetSkinned(false);
-                    NiSkinInstance skinInstance = header.GetBlockById<NiSkinInstance>(niShape.SkinInstanceRef().index);
+                    using var skinRef = niShape.SkinInstanceRef();
+                    NiSkinInstance skinInstance = blockCache.EditableBlockById<NiSkinInstance>(skinRef.index);
                     if (skinInstance != null)
                     {
-                        if (!skinInstance.skinPartitionRef.IsEmpty())
+                        using var partitionRef = skinInstance.skinPartitionRef;
+                        if (!partitionRef.IsEmpty())
                         {
-                            NiSkinPartition skinPartition = header.GetBlockById<NiSkinPartition>(skinInstance.skinPartitionRef.index);
+                            NiSkinPartition skinPartition = blockCache.EditableBlockById<NiSkinPartition>(partitionRef.index);
                             if (skinPartition != null)
                             {
                                 TransferVertexData(skinPartition, niShape as BSTriShape);
                             }
-                            deletedBlocks.Add(skinInstance.skinPartitionRef.index);
                         }
                         else
                         {
-                            Console.WriteLine("Expected NiSkinPartition at offset {0} not found", skinInstance.skinPartitionRef.index);
+                            Console.WriteLine("Expected NiSkinPartition at offset {0} not found", partitionRef.index);
                         }
 
                         // Check for all scale transforms.
                         TransformScale(niShape, skinInstance);
-                        deletedBlocks.Add(niShape.SkinInstanceRef().index);
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiSkinInstance at offset {0} not found", niShape.SkinInstanceRef().index);
+                        Console.WriteLine("Expected NiSkinInstance at offset {0} not found", skinRef.index);
                     }
 
                 }
@@ -259,19 +270,24 @@ namespace AllGUD
         {
             if (scabbard == null)
                 return;
-            string newName = scabbard.name.get().Replace(ScbTag, NonStickScbTag, StringComparison.OrdinalIgnoreCase);
+            using var blockName = scabbard.name;
+            string newName = blockName.get().Replace(ScbTag, NonStickScbTag, StringComparison.OrdinalIgnoreCase);
             int newId = header.AddOrFindStringId(newName);
             NiStringRef newRef = new NiStringRef(newName);
             newRef.SetIndex(newId);
             scabbard.name = newRef;
 
-            var childNodes = scabbard.CopyChildRefs();
+            using var childNodes = scabbard.CopyChildRefs();
             foreach (var childNode in childNodes)
             {
-                if (alreadyDone.Contains(childNode.index))
-                    continue;
-                alreadyDone.Add(childNode.index);
-                RenameScabbard(alreadyDone, header.GetBlockById<NiAVObject>(childNode.index));
+                using (childNode)
+                {
+                    if (alreadyDone.Contains(childNode.index))
+                        continue;
+                    alreadyDone.Add(childNode.index);
+                    var childBlock = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                    RenameScabbard(alreadyDone, childBlock);
+                }
             }
         }
 
@@ -283,25 +299,29 @@ namespace AllGUD
             // Especially since there's a mod with a SE Mesh that has improper data that makes it cause CTD and this is the only thing I can use to catch it.
             if (shape == null || !shape.HasShaderProperty())
                 return false;
-            NiBlockRefNiShader shaderPropertyRef = shape.ShaderPropertyRef();
+            using NiBlockRefNiShader shaderPropertyRef = shape.ShaderPropertyRef();
             if (shaderPropertyRef == null || shaderPropertyRef.IsEmpty())
                 return false;
-            BSShaderProperty shaderProperty = header.GetBlockById<BSShaderProperty>(shaderPropertyRef.index);
+            BSShaderProperty shaderProperty = blockCache.EditableBlockById<BSShaderProperty>(shaderPropertyRef.index);
             if (shaderProperty != null)
             {
                 if (shaderProperty.HasWeaponBlood())
                     return true;
                 if (shaderProperty.HasTextureSet())
                 {
-                    var textureSetRef = shaderProperty.TextureSetRef();
+                    using var textureSetRef = shaderProperty.TextureSetRef();
                     if (!textureSetRef.IsEmpty())
                     {
-                        BSShaderTextureSet textureSet = header.GetBlockById<BSShaderTextureSet>(textureSetRef.index);
+                        BSShaderTextureSet textureSet = blockCache.EditableBlockById<BSShaderTextureSet>(textureSetRef.index);
                         if (textureSet != null)
                         {
-                            string texturePath = textureSet.textures.items()[0].get().ToLower();
+                            using var textures = textureSet.textures;
+                            using var texturePaths = textures.items();
+                            using var firstPath = texturePaths[0];
+                            string texturePath = firstPath.get();
                             // Skullcrusher users bloodhit
-                            if (texturePath.Contains("blood\\bloodedge") || texturePath.Contains("blood\bloodhit"))
+                            if (texturePath.Contains("blood\\bloodedge", StringComparison.OrdinalIgnoreCase) ||
+                                texturePath.Contains("blood\\bloodhit", StringComparison.OrdinalIgnoreCase))
                                 return true;
                         }
                         else
@@ -314,19 +334,26 @@ namespace AllGUD
                 // NiTriShape blood has a NiStringExtraData sub-block named 'Keep' and 'NiHide' as its data.
                 // This was the original, dunno if Kesta needed it for something specific or not?
                 // Saw some meshes that couldn't keep this straight, and had NiHide/Keep reversed.
-                foreach (NiBlockRefNiExtraData extraDataRef in shape.extraDataRefs.GetRefs())
+                using var extraDataRefs = shape.extraDataRefs;
+                using var refList = extraDataRefs.GetRefs();
+                foreach (NiBlockRefNiExtraData extraDataRef in refList)
                 {
-                    if (extraDataRef.IsEmpty())
-                        continue;
-                    NiStringExtraData stringExtraData = header.GetBlockById<NiStringExtraData>(extraDataRef.index);
-                    if (stringExtraData != null)
+                    using (extraDataRef)
                     {
-                        if (stringExtraData.name.get() == "Keep" && stringExtraData.stringData.get() == "NiHide")
-                            return true;
-                    }
-                    else
-                    {
-                        Console.WriteLine("Expected NiStringExtraData at offset {0} not found", extraDataRef.index);
+                        if (extraDataRef.IsEmpty())
+                            continue;
+                        NiStringExtraData stringExtraData = blockCache.EditableBlockById<NiStringExtraData>(extraDataRef.index);
+                        if (stringExtraData != null)
+                        {
+                            using var name = stringExtraData.name;
+                            using var stringData = stringExtraData.stringData;
+                            if (name.get() == "Keep" && stringData.get() == "NiHide")
+                                return true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Expected NiStringExtraData at offset {0} not found", extraDataRef.index);
+                        }
                     }
                 }
             }
@@ -352,11 +379,12 @@ namespace AllGUD
                     return;
 
                 // Get a copy of the source block for dest NIF. Don't add to NIF yet, we must update it first.
-                NiShape destShape = shape.Clone();
-                if (destShape.HasData() && !destShape.DataRef().IsEmpty())
+                using NiShape destShape = niflycpp.BlockCache.SafeClone<NiShape>(shape);
+                using var dataRef = destShape.DataRef();
+                if (destShape.HasData() && !dataRef.IsEmpty())
                 {
                     // Retrieves a copy of the source NIF block containing any required edits, and push to dest
-                    NiGeometryData data = header.GetBlockById<NiGeometryData>(destShape.DataRef().index);
+                    NiGeometryData data = niflycpp.BlockCache.SafeClone<NiGeometryData>(blockCache.EditableBlockById<NiGeometryData>(dataRef.index));
                     if (data != null)
                     {
                         int dataId = destHeader!.AddBlock(data);
@@ -364,22 +392,26 @@ namespace AllGUD
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiGeometryData at offset {0} not found", destShape.DataRef().index);
+                        Console.WriteLine("Expected NiGeometryData at offset {0} not found", dataRef.index);
                     }
                 }
 
-                if (destShape.HasShaderProperty() && !destShape.ShaderPropertyRef().IsEmpty())
+                using var shaderRef = destShape.ShaderPropertyRef();
+                if (destShape.HasShaderProperty() && !shaderRef.IsEmpty())
                 {
-                    BSShaderProperty shaderProperty = header.GetBlockById<BSShaderProperty>(destShape.ShaderPropertyRef().index);
+                    using BSShaderProperty shaderProperty =
+                        niflycpp.BlockCache.SafeClone<BSShaderProperty>(blockCache.EditableBlockById<BSShaderProperty>(shaderRef.index));
                     if (shaderProperty != null)
                     {
                         // remove unnecessary skinning on bows.
                         shaderProperty.SetSkinned(false);
                         // remove controllers and do them manually if needed
-                        shaderProperty.controllerRef.Clear();
-                        if (shaderProperty.HasTextureSet() && !shaderProperty.TextureSetRef().IsEmpty())
+                        shaderProperty.controllerRef = new NiBlockRefNiTimeController((int)niflycpp.NIF_NPOS);
+                        using var textureSetRef = shaderProperty.TextureSetRef();
+                        if (shaderProperty.HasTextureSet() && !textureSetRef.IsEmpty())
                         {
-                            BSShaderTextureSet textureSet = header.GetBlockById<BSShaderTextureSet>(shaderProperty.TextureSetRef().index);
+                            BSShaderTextureSet textureSet = niflycpp.BlockCache.SafeClone<BSShaderTextureSet>(
+                                blockCache.EditableBlockById<BSShaderTextureSet>(textureSetRef.index));
                             if (textureSet != null)
                             {
                                 int textureSetId = destHeader!.AddBlock(textureSet);
@@ -387,7 +419,7 @@ namespace AllGUD
                             }
                             else
                             {
-                                Console.WriteLine("Expected BSShaderTextureSet at offset {0} not found", shaderProperty.TextureSetRef().index);
+                                Console.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
                             }
                         }
                         int shaderId = destHeader!.AddBlock(shaderProperty);
@@ -399,17 +431,22 @@ namespace AllGUD
                     }
                 }
 
-                if (destShape.HasAlphaProperty() && !destShape.AlphaPropertyRef().IsEmpty())
+                using var alphaRef = destShape.AlphaPropertyRef();
+                if (destShape.HasAlphaProperty() && !alphaRef.IsEmpty())
                 {
-                    NiAlphaProperty alphaProperty = header.GetBlockById<NiAlphaProperty>(destShape.AlphaPropertyRef().index);
+                    NiAlphaProperty alphaProperty = blockCache.EditableBlockById<NiAlphaProperty>(alphaRef.index);
                     if (alphaProperty != null)
                     {
-                        int alphaId = destHeader!.AddBlock(alphaProperty);
-                        destShape.SetAlphaPropertyRef(alphaId);
+                        using NiAlphaProperty newAlpha = niflycpp.BlockCache.SafeClone<NiAlphaProperty>(alphaProperty);
+                        if (newAlpha != null)
+                        {
+                            int alphaId = destHeader!.AddBlock(newAlpha);
+                            destShape.SetAlphaPropertyRef(alphaId);
+                        }
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiAlphaProperty at offset {0} not found", destShape.AlphaPropertyRef().index);
+                        Console.WriteLine("Expected NiAlphaProperty at offset {0} not found", alphaRef.index);
                     }
                 }
 
@@ -430,38 +467,334 @@ namespace AllGUD
                 // Scabbard or non-trishape
                 // For Non-scabbard, non-trishape do not copy the block in hand to the dest NIF, only its relevant children
 
-                NiNode blockDest = parent;
+                NiNode blockDest;
                 bool isScabbard = false;
-                if (source.name.get() == NonStickScbTag && source is NiNode)
+                using var sourceName = source.name;
+                if (sourceName.get() == NonStickScbTag && source is NiNode)
                 {
                     // Multipart scabbard, Apply transform down and attach and child tri-shapes to the scabbard block
                     isScabbard = true;
-                    blockDest = (source as NiNode)!.Clone();
+                    blockDest = niflycpp.BlockCache.SafeClone<NiNode>(source);
                     blockDest.childRefs = new NiBlockRefArrayNiAVObject();
                 }
-
-                // Copy Blocks all the way down until a trishape is reached
-                ISet<int> alreadyDone = new HashSet<int>();
-                var childNodes = source.CopyChildRefs();
-                foreach (var childNode in childNodes)
+                else
                 {
-                    var block = header.GetBlockById<NiAVObject>(childNode.index);
-                    if (block == null)
-                        continue;
-                    if (alreadyDone.Contains(childNode.index))
-                        continue;
-                    alreadyDone.Add(childNode.index);
-                    Console.WriteLine("\t\tProcessing Block: {0}", childNode.index);
-                    CopyBlockAsChildOf(block, blockDest);
+                    blockDest = niflycpp.BlockCache.SafeClone<NiNode>(parent);
                 }
 
-                if (isScabbard)
+                using (blockDest)
                 {
-                    // Insert scabbard in the dest once all once all editing due to child content is complete
-                    destHeader!.AddBlock(blockDest);
-                    destNif!.SetParentNode(blockDest, parent);
+                    // Copy Blocks all the way down until a trishape is reached
+                    ISet<int> alreadyDone = new HashSet<int>();
+                    using var childNodes = source.CopyChildRefs();
+                    foreach (var childNode in childNodes)
+                    {
+                        using (childNode)
+                        {
+                            var block = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                            if (block == null)
+                                continue;
+                            if (alreadyDone.Contains(childNode.index))
+                                continue;
+                            alreadyDone.Add(childNode.index);
+                            Console.WriteLine("\t\tCopy-as-child-of @ Child {0}", childNode.index);
+                            CopyBlockAsChildOf(block, blockDest);
+                        }
+                    }
+
+                    if (isScabbard)
+                    {
+                        // Insert scabbard in the dest once all editing due to child content is complete
+                        destHeader!.AddBlock(blockDest);
+                        destNif!.SetParentNode(blockDest, parent);
+                        blockDest.Dispose();
+                    }
                 }
             }
+        }
+
+        private void MirrorBlock(int id, NiAVObject block)
+        {
+            if (block == null)
+                return;
+            Console.WriteLine("\t\tMirroring Block: {0}", id);
+            if (block is BSTriShape || block is NiTriShape || block is NiTriStrips)
+            {
+                if (IsBloodMesh(block as NiShape))
+                    return;
+
+                // TODO it appears these functions could be combined. Stick with script flow for safety, at least initially.
+                ApplyTransform(id, block); //In case things are at an angle where flipping x would produce incorrect results.
+                FlipAlongX(id, block);
+            }
+            else
+            {
+                ISet<int> childDone = new HashSet<int>();
+                using var childNodes = block.CopyChildRefs();
+                foreach (var childNode in childNodes)
+                {
+                    using (childNode)
+                    {
+                        if (childDone.Contains(childNode.index))
+                            continue;
+                        childDone.Add(childNode.index);
+                        var subBlock = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                        if (subBlock == null)
+                            continue;
+                        MirrorBlock(childNode.index, subBlock);
+                    }
+                }
+            }
+        }
+
+        private void FlipAlongX(int id, NiAVObject block)
+        {
+            if (block is BSTriShape)
+            {
+                BSTriShape? bsTriShape = block as BSTriShape;
+                if (bsTriShape == null)
+                    return;
+                try
+                {
+                    using vectorBSVertexData vertexDataList = new vectorBSVertexData();
+                    using var vertData = bsTriShape.vertData;
+                    using var rawNormals = bsTriShape.UpdateRawNormals();
+                    using var newRawNormals = new vectorVector3();
+                    foreach (var vertexNormal in vertData.Zip(rawNormals, Tuple.Create))
+                    {
+                        using BSVertexData vertexData = vertexNormal.Item1;
+                        using Vector3 rawNormal = vertexNormal.Item2;
+                        using Vector3 newVertex = new Vector3(vertexData.vert);
+                        newVertex.x = -newVertex.x;
+
+                        using BSVertexData newVertexData = new BSVertexData(vertexData);
+                        newVertexData.vert = newVertex;
+                        vertexDataList.Add(newVertexData);
+
+                        rawNormal.x = -rawNormal.x;
+                        newRawNormals.Add(rawNormal);
+                    }
+                    bsTriShape.vertData = vertexDataList;
+                    bsTriShape.SetNormals(newRawNormals);
+
+                    using  vectorTriangle newTriangles = new vectorTriangle();
+                    using var oldTriangles = bsTriShape.triangles;
+                    foreach (Triangle triangle in oldTriangles)
+                    {
+                        using (triangle)
+                        {
+                            using Triangle newTriangle = new Triangle(triangle.p2, triangle.p1, triangle.p3);
+                            newTriangles.Add(newTriangle);
+                        }
+                    }
+                    bsTriShape.triangles = newTriangles;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Exception for Block Data in BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
+                }
+                bsTriShape.UpdateBounds();
+                try // Non-vital
+                {
+                    // TODO is this the right mapping?
+                    // aTriShape.UpdateTangents;
+                    bsTriShape.CalcTangentSpace();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Exception updating Tangents in left-hand variant(s) for: {0} in {1} : {2}",
+                        id, nifPath, e.GetBaseException());
+                }
+            }
+            else if (block is NiTriStrips || block is NiTriShape)
+            {
+                NiGeometry? niGeometry = block as NiGeometry;
+                if (niGeometry == null)
+                    return;
+                using var dataRef = niGeometry.DataRef();
+                if (!dataRef.IsEmpty())
+                {
+                    NiGeometryData geometryData = blockCache.EditableBlockById<NiGeometryData>(dataRef.index);
+                    if (geometryData != null)
+                    {
+                        using vectorVector3 newVertices = new vectorVector3();
+                        using var vertices = geometryData.vertices;
+                        foreach (Vector3 vertex in vertices)
+                        {
+                            using Vector3 newVertex = new Vector3(vertex);
+                            newVertex.x = -newVertex.x;
+                            newVertices.Add(newVertex);
+                        }
+                        geometryData.vertices = newVertices;
+
+                        using vectorVector3 normals = geometryData.normals;
+                        if (normals != null)
+                        {
+                            using vectorVector3 newNormals = new vectorVector3();
+                            using var dataNormals = geometryData.normals;
+                            foreach (Vector3 normal in dataNormals)
+                            {
+                                using Vector3 newNormal = new Vector3(normal);
+                                newNormal.x = -newNormal.x;
+                                newNormals.Add(newNormal);
+                            }
+                            geometryData.normals = newNormals;
+
+                            using vectorTriangle newTriangles = new vectorTriangle();
+                            using var triangles = geometryData.Triangles();
+                            foreach (Triangle triangle in triangles)
+                            {
+                                using (triangle)
+                                {
+                                    newTriangles.Add(new Triangle(triangle.p2, triangle.p1, triangle.p3));
+                                }
+                            }
+                            geometryData.SetTriangles(newTriangles);
+                        }
+                        geometryData.UpdateBounds();
+                        try // Non-vital
+                        {
+                            // TODO is this the right mapping?
+                            geometryData.CalcTangentSpace();
+                            // TriShapeData.UpdateTangents;
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
+                                id, nifPath, e.GetBaseException());
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ApplyTransform(int id, NiAVObject block)
+        {
+            using MatTransform transform = block.transform;
+            float scale = transform.scale;
+            using Vector3 translation = transform.translation;
+            using Matrix3 rotation = transform.rotation;
+            rotation.SetPrecision(4);
+
+            // Check if anything is transformed
+            if (scale == 1 && translation.IsZero() && rotation.IsIdentity())
+                return;
+
+            if (block is BSTriShape)
+            {
+                BSTriShape? bsTriShape = block as BSTriShape;
+                if (bsTriShape == null)
+                    return;
+                try
+                {
+                    using vectorBSVertexData vertexDataList = new vectorBSVertexData();
+                    using var vertData = bsTriShape.vertData;
+                    using var rawNormals = bsTriShape.UpdateRawNormals();
+                    using var newRawNormals = new vectorVector3();
+                    foreach (var vertexNormal in vertData.Zip(rawNormals, Tuple.Create))
+                    {
+                        using BSVertexData vertexData = vertexNormal.Item1;
+                        using Vector3 rawNormal = vertexNormal.Item2;
+                        using var vert = vertexData.vert;
+                        using var rMultV = rotation.opMult(vert);
+                        using var rMultVMultS = rMultV.opMult(scale);
+                        using Vector3 newVertex = rMultVMultS.opAdd(translation);
+                        using BSVertexData newVertexData = new BSVertexData(vertexData);
+                        newVertexData.vert = newVertex;
+                        vertexDataList.Add(newVertexData);
+
+                        using Vector3 newRawNormal = rotation.opMult(rawNormal);
+                        newRawNormals.Add(newRawNormal);
+                    }
+                    bsTriShape.vertData = vertexDataList;
+                    bsTriShape.SetNormals(newRawNormals);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Exception for Block Data for BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
+                }
+                bsTriShape.UpdateBounds();
+                try // Non-vital
+                {
+                    // TODO is this the right mapping?
+                    // aTriShape.UpdateTangents;
+                    bsTriShape.CalcTangentSpace();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for: {0} in {1} : {2}",
+                        id, nifPath, e.GetBaseException());
+                }
+            }
+            else
+            {
+                if (block is NiTriStrips || block is NiTriShape)
+                {
+                    NiGeometry? niGeometry = block as NiGeometry;
+                    if (niGeometry == null)
+                        return;
+                    using var dataRef = niGeometry.DataRef();
+                    if (!dataRef.IsEmpty())
+                    {
+                        NiGeometryData geometryData = blockCache.EditableBlockById<NiGeometryData>(dataRef.index);
+                        if (geometryData != null)
+                        {
+                            using vectorVector3 newVertices = new vectorVector3();
+                            using var vertices = geometryData.vertices;
+                            foreach (Vector3 vertex in vertices)
+                            {
+                                using (vertex)
+                                {
+                                    using var rMultV = rotation.opMult(vertex);
+                                    using var rMultVMultS = rMultV.opMult(scale);
+                                    using Vector3 newVertex = rMultVMultS.opAdd(translation);
+                                    newVertices.Add(newVertex);
+
+                                }
+                            }
+                            geometryData.vertices = newVertices;
+
+                            using vectorVector3 normals = geometryData.normals;
+                            if (normals != null)
+                            {
+                                using vectorVector3 newNormals = new vectorVector3();
+                                using var dataNormals = geometryData.normals;
+                                foreach (Vector3 normal in dataNormals)
+                                {
+                                    using (normal)
+                                    {
+                                        using Vector3 newNormal = rotation.opMult(normal);
+                                        newNormals.Add(newNormal);
+                                    }
+                                }
+                                geometryData.normals = newNormals;
+                            }
+                            geometryData.UpdateBounds();
+                            try // Non-vital
+                            {
+                                // TODO is this the right mapping?
+                                geometryData.CalcTangentSpace();
+                                // TriShapeData.UpdateTangents;
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
+                                    id, nifPath, e.GetBaseException());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Clear the new transform of elements applied above
+            using MatTransform newTransform = new MatTransform();
+            Matrix3 newRotation = Matrix3.MakeRotation(0.0f, 0.0f, 0.0f);   // yaw, pitch, roll
+            newTransform.rotation = newRotation;
+            using Vector3 newTranslation = new Vector3();
+            newTranslation.Zero();
+            newTransform.translation = newTranslation;
+            newTransform.scale = 1.0f;
+            block.transform = newTransform;
         }
 
         // We treat the loaded source NIF data as a writable scratchpad, to ease mirroring of script logic
@@ -469,23 +802,28 @@ namespace AllGUD
         {
             // Populate the list of child blocks, have to use these to Apply Transforms from non-trishapes to their kids
             NiAVObject? scabbard = null;
-            NiNode rootNode = nif.GetRootNode();
-            if (rootNode == null)
-                return;
-
-            var childNodes = rootNode.GetChildren().GetRefs();
-            foreach (var childNode in childNodes)
+            int scabbardId = -1;
+            using (NiNode rootNode = nif.GetRootNode())
             {
-                if (rootChildren.ContainsKey(childNode.index))
-                    continue;
-                var block = header.GetBlockById<NiAVObject>(childNode.index);
-                if (block == null)
-                    continue;
-                TransformRootChild(block, childNode.index);
-                rootChildren.Add(childNode.index, block);
-                if (block.name.get().ToLower().Contains(ScbTag, StringComparison.OrdinalIgnoreCase))
+                if (rootNode == null)
+                    return;
+
+                var childNodes = rootNode.GetChildren().GetRefs();
+                foreach (var childNode in childNodes)
                 {
-                    scabbard = block;
+                    if (rootChildIds.Contains(childNode.index))
+                        continue;
+                    var block = blockCache.EditableBlockById<NiAVObject>(childNode.index);
+                    if (block == null)
+                        continue;
+                    TransformRootChild(block, childNode.index);
+                    rootChildIds.Add(childNode.index);
+                    using var blockName = block.name;
+                    if (blockName.get().ToLower().Contains(ScbTag, StringComparison.OrdinalIgnoreCase))
+                    {
+                        scabbard = block;
+                        scabbardId = childNode.index;
+                    }
                 }
             }
 
@@ -520,32 +858,169 @@ namespace AllGUD
             // static display only at present - start from template
             using (destNif = TemplateFactory.CreateSSE(nifModel, false))
             {
-                destHeader = destNif.GetHeader();
-                NiNode rootDest = destNif.GetRootNode();
-                if (rootDest == null)
-                    return;
-                // Copy edited Source Blocks into the target NIF
-                // TODO update required for support of Dynamic Display (bUseTemplates false)
-                foreach (var idBlock in rootChildren)
+                using (destHeader = destNif.GetHeader())
                 {
-                    Console.WriteLine("\t\tProcessing Block: {0}", idBlock.Key);
-                    CopyBlockAsChildOf(idBlock.Value, rootDest);
+                    using (NiNode rootDest = destNif.GetRootNode())
+                    {
+                        if (rootDest == null)
+                            return;
+                        // Copy edited Source Blocks into the target NIF
+                        // TODO update required for support of Dynamic Display (bUseTemplates false)
+                        foreach (var id in rootChildIds)
+                        {
+                            Console.WriteLine("\t\tCopy-as-child-of @ AllGUD Mesh Root Child {0}", id);
+                            CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
+                        }
+                        //if bUseTemplates then begin//TEMPLATE
+                        //	//Copy the relevant Blocks
+                        //	for i := 0 to Pred(ListRootChildren.Count) do begin
+                        //		DetailedLog(#9#9'Processing Block:'+inttostr(ListRootChildren[i]));
+                        //		SrcBlock := aNifSourceFile.Blocks[ListRootChildren[i]];
+                        //		CopyBlockAsChildOf(SrcBlock, Nif.Blocks[0]);
+                        //	end;
+                        //end;
+
+                        //Save and finish
+                        destNif.SafeSave(destPath, ScriptLess.saveOptions);
+
+                        Console.WriteLine("\tSuccessfully generated {0}", destPath);
+                        ++meshHandler.countGenerated;
+                    }
                 }
-                //if bUseTemplates then begin//TEMPLATE
-                //	//Copy the relevant Blocks
-                //	for i := 0 to Pred(ListRootChildren.Count) do begin
-                //		DetailedLog(#9#9'Processing Block:'+inttostr(ListRootChildren[i]));
-                //		SrcBlock := aNifSourceFile.Blocks[ListRootChildren[i]];
-                //		CopyBlockAsChildOf(SrcBlock, Nif.Blocks[0]);
-                //	end;
-                //end;
+            }
 
-                //Save and finish
-                ScriptLess.CheckDestinationExists(Path.GetDirectoryName(destPath)!);
-                destNif.Save(destPath, ScriptLess.saveOptions);
+            // MESH #2 Left-hand DSR-style one-hand melee and staff
+            if (nifWeapon == WeaponType.OneHandMelee || nifWeapon == WeaponType.Staff)
+            {
+                destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath += "Left.nif";
 
-                Console.WriteLine("\tSuccessfully generated {0}", destPath);
-                ++MeshHandler.countGenerated;
+                // Mirror the shapes
+                if (nifWeapon != WeaponType.Staff || ScriptLess.Configuration.mirrorStaves)
+                {
+                    Console.WriteLine("\tAttempting to generate Left-Hand mesh to mirror Weapon: {0}", destPath);
+                    // TODO requires enhancement for dynamic displays
+                    //		if not (bUseTemplates) and bMeshHasController then begin
+                    //			Log(#9'Warning: ' +FileSrc+ ' contains a NiTransformController and is attempting to mirror into a left-hand mesh. This may not go well. Post to AllGUD if you encounter one of these as it will probably need a custom patch.');
+                    //		end;
+                    foreach (var id in rootChildIds)
+                    {
+                        MirrorBlock(id, blockCache.EditableBlockById<NiAVObject>(id));
+                    }
+                    // aNifSourceFile.SpellFaceNormals; //currently bugged in xEdit 4.0.3, will be needed in the future.
+                    // TODO: Wait for this to be fixed.
+                }
+                else
+                {
+                    Console.WriteLine("\tAttempting to generate unmirrored Left-Hand mesh: {0}", destPath);
+                }
+
+                // Copy edited Blocks
+                using (destNif = TemplateFactory.CreateSSE(nifModel, true))
+                {
+                    using (destHeader = destNif.GetHeader())
+                    {
+                        using (NiNode rootDest = destNif.GetRootNode())
+                        {
+                            if (rootDest == null)
+                                return;
+                            // TODO update required for support of Dynamic Display (bUseTemplates false)
+                            foreach (var id in rootChildIds)
+                            {
+                                Console.WriteLine("\t\tCopy-as-child-of @ Left-Hand mesh Root Child {0}", id);
+                                CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
+                            }
+                            //	if bUseTemplates then begin	//TEMPLATE
+                            //		//Copy main TriShapes
+                            //		for i := 0 to Pred(ListRootChildren.Count) do begin
+                            //			DetailedLog(#9#9'Processing Block: '+inttostr(ListRootChildren[i]));
+                            //			SrcBlock := aNifSourceFile.Blocks[ListRootChildren[i]];
+                            //			CopyBlockAsChildOf(SrcBlock, Nif.Blocks[0]);
+                            //		end;
+                            //	end;
+
+                            //Save and finish
+                            destNif.SafeSave(destPath, ScriptLess.saveOptions);
+
+                            Console.WriteLine("\tSuccessfully generated {0}", destPath);
+                            ++meshHandler.countGenerated;
+                        }
+                    }
+                }
+
+                // MESH #3 Scabbard by itself for an empty left-hand sheath to use while weapons are drawn
+                if (scabbard != null)
+                {
+                    destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                    destPath += "Sheath.nif";
+
+                    Console.Write("\tAttempting to generate Left-Scabbard mesh: {0}", destPath);
+
+                    // Create File - ALWAYS TEMPLATE FOR SHEATH.NIF
+                    using (destNif = TemplateFactory.CreateSSE(nifModel, true))
+                    {
+                        using (destHeader = destNif.GetHeader())
+                        {
+                            using (NiNode rootDest = destNif.GetRootNode())
+                            {
+                                if (rootDest == null)
+                                    return;
+                                Console.WriteLine("\t\tProcessing Scabbard: {0}", scabbardId);
+                                CopyBlockAsChildOf(scabbard, rootDest);
+
+                                //Save and finish
+                                destNif.SafeSave(destPath, ScriptLess.saveOptions);
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("\tSuccessfully generated {0}", destPath);
+                    ++meshHandler.countGenerated;
+                }
+            }
+            else if (nifWeapon == WeaponType.Shield)
+            {
+                // MESH #4 Shield but translate z by -5 to adjust for backpacks/cloaks
+                destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath += "OnBackClk.nif";
+                Console.WriteLine("\tAttempting to generate Shield-Adjusted-for-Cloak mesh: {0}", destPath);
+
+                // Edit Blocks
+                // TODO conditional if Dynamic Display added
+                //	if bUseTemplates then begin
+                // Copy Shield models
+                using (destNif = TemplateFactory.CreateSSE(nifModel, false))
+                {
+                    using (destHeader = destNif.GetHeader())
+                    {
+                        using (NiNode rootDest = destNif.GetRootNode())
+                        {
+                            if (rootDest == null)
+                                return;
+                            foreach (var id in rootChildIds)
+                            {
+                                // Translate Z of each Child block of Root by -5, using a copy for bespoke editing
+                                Console.WriteLine("\t\tCopy-as-child-of @ Shield-Adjusted-for-Cloak Root {0}", id);
+                                NiAVObject block = blockCache.EditableBlockById<NiAVObject>(id);
+
+                                using var transform = block.transform;
+                                using var translation = transform.translation;
+                                translation.z = translation.z - 5.0f;
+                                transform.translation = translation;
+                                block.transform = transform;
+
+                                CopyBlockAsChildOf(block, rootDest);
+                                // Slothability said -4.5 was the most common one. original DSR meshes had -5 i believe?
+                            }
+
+                            //Save and finish
+                            destNif.SafeSave(destPath, ScriptLess.saveOptions);
+
+                            Console.WriteLine("\tSuccessfully generated {0}", destPath);
+                            ++meshHandler.countGenerated;
+                        }
+                    }
+                }
             }
         }
     }

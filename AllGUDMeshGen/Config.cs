@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 
 namespace AllGUD
@@ -10,7 +12,9 @@ namespace AllGUD
         public string skeletonOutputFolder { get; }
         public string meshGenInputFolder { get; }
         public string meshGenOutputFolder { get; }
-        public string[] nameFilters { get; }
+        
+        public bool mirrorStaves { get; }
+        public IList<string[]> nameFilters { get; }
 
         public Config(string configFilePath)
         {
@@ -32,26 +36,35 @@ namespace AllGUD
                 meshGenInputFolder = (string)meshGenKeys["inputFolder"]!;
                 meshGenOutputFolder = (string)meshGenKeys["outputFolder"]!;
                 Console.WriteLine(String.Format("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder));
+
+                mirrorStaves = (bool)meshGenKeys["mirrorStaves"]!;
+                Console.WriteLine(String.Format("Mirror left staff meshes ? '{0}'", mirrorStaves));
                 string nameFilter = (string)meshGenKeys["nameFilter"]!;
+                nameFilters = new List<string[]>();
                 if (!String.IsNullOrEmpty(nameFilter))
                 {
-                    nameFilters = Array.ConvertAll(nameFilter.Split(','), d => d.ToLower());
-                }
-                else
-                {
-                    nameFilters = new string[0];
+                    foreach (string filter in nameFilter.Split('|'))
+                    {
+                        string[] filterElements = filter.Split(',');
+                        if (filterElements.Length > 0)
+                        {
+                            nameFilters.Add(filterElements);
+                        }
+                    }
                 }
             }
         }
 
         public bool IsNifValid(string nifPath)
         {
-            foreach (string filter in nameFilters)
+            foreach (string[] filterElements in nameFilters)
             {
-                if (!nifPath.Contains(filter))
-                    return false;
+                if (filterElements
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .All(v => nifPath.Contains(v, StringComparison.OrdinalIgnoreCase)))
+                    return true;
             }
-            return true;
+            return nameFilters.Count == 0;  // allow all iff no filters
         }
     }
 }
