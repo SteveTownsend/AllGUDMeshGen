@@ -400,7 +400,8 @@ namespace AllGUD
                 {
                     // TODO selective patching by weapon type would need a filter here
                     ++countPatched;
-                    Console.WriteLine("\tTemplate: Special Edition");
+                    if (ScriptLess.Configuration.detailedLog)
+                        Console.WriteLine("\tTemplate: Special Edition");
                     using NifTransformer transformer = new NifTransformer(this, nif, originalPath, modelType, weaponType);
                     transformer.Generate();
                 }

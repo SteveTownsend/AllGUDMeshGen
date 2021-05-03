@@ -16,6 +16,8 @@ namespace AllGUD
         public bool mirrorStaves { get; }
         public IList<string[]> nameFilters { get; }
 
+        public bool detailedLog { get; }
+
         public Config(string configFilePath)
         {
             // override if config is well-formed
@@ -27,6 +29,10 @@ namespace AllGUD
             else
             {
                 JObject configJson = JObject.Parse(File.ReadAllText(configFilePath));
+                var generalKeys = configJson["general"]!;
+                detailedLog = (bool)generalKeys["detailedLog"]!;
+                Console.WriteLine(String.Format("Use detailed logging output to console? {0}", detailedLog));
+
                 var skeletonKeys = configJson["skeleton"]!;
                 skeletonInputFolder = (string)skeletonKeys["inputFolder"]!;
                 skeletonOutputFolder = (string)skeletonKeys["outputFolder"]!;

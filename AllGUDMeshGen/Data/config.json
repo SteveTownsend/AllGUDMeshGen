@@ -1,4 +1,7 @@
 {
+  "general": {
+    "detailedLog": false
+  },
   "skeleton": {
     "inputFolder": "",
     "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Patcher/"
