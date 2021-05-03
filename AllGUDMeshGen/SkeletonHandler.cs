@@ -88,8 +88,9 @@ namespace AllGUD
                 int newID = header!.AddBlock(patchTarget.Value);
                 node.GetChildren().AddBlockRef(newID);
 
-                Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                    patchTarget.Key, oldName.get(), newID, newName);
+                if (ScriptLess.Configuration.detailedLog)
+                    Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
+                        patchTarget.Key, oldName.get(), newID, newName);
             }
         }
         private static void PatchSkeleton(string nifName)
@@ -124,7 +125,8 @@ namespace AllGUD
                     nodesToAdd.ExceptWith(patchedNodes);
                     foreach (string patchNode in nodesToAdd)
                     {
-                        Console.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
+                        if (ScriptLess.Configuration.detailedLog)
+                            Console.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
                         header.AddOrFindStringId(patchNode);
                     }
                     // iterate blocks in the NIF
