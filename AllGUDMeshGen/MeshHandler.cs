@@ -231,7 +231,7 @@ namespace AllGUD
                     {
                         if (armor.Armature.Count > 1)
                         {
-                            Console.WriteLine("Armor {0} has {1) Armature models: using the first", armor.FormKey.ToString(), armor.Armature.Count);
+                            Console.WriteLine("Armor {0} has {1} Armature models: using the first", armor.FormKey.ToString(), armor.Armature.Count);
                         }
                         var arma = armor.Armature[0];
                         if (arma != null)
