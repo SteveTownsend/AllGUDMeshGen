@@ -10,7 +10,7 @@ using nifly;
 
 namespace AllGUD
 {
-    internal class MeshHandler
+    public class MeshHandler
     {
         private class TargetMeshInfo
         {
@@ -22,7 +22,7 @@ namespace AllGUD
                 modelType = model;
             }
         }
-        private string? meshGenLocation;
+        public Config config { get; }
         private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
         private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();
         private IDictionary<string, IList<IArmorAddonGetter>> alternateTextureArmorAddons = new Dictionary<string, IList<IArmorAddonGetter>>();
@@ -46,7 +46,7 @@ namespace AllGUD
             "UniqueWeaponsRedone.esp"
         };
 
-        internal enum ModelType {
+        public enum ModelType {
             Unknown = 0,
             Sword,
             Dagger,
@@ -87,14 +87,14 @@ namespace AllGUD
 
         private int alternateTextureModels;
 
-        internal MeshHandler(string location)
+        public MeshHandler(Config configuration)
         {
-            meshGenLocation = location;
+            config = configuration;
         }
 
         private bool AddMesh(string modelPath, ModelType modelType)
         {
-            if (!ScriptLess.Configuration.IsNifValid(modelPath))
+            if (!config.IsNifValid(modelPath))
             {
                 Console.WriteLine("Filters skip {0}", modelPath);
                 ++countSkipped;
@@ -116,7 +116,7 @@ namespace AllGUD
             string modelPath = model.File;
             if (AddMesh(modelPath, modelType))
             {
-                Console.WriteLine("Model {0} with type {1} added", modelPath, modelType.ToString());
+                Console.WriteLine("Model {0}/{1} with type {2} added", record, modelPath, modelType.ToString());
             }
 
             // record weapons with alternate textures for patching later in the workflow
@@ -384,7 +384,7 @@ namespace AllGUD
             return modelType;
         }
 
-        private void GenerateMeshes(NifFile nif, string originalPath, ModelType modelType)
+        public void GenerateMeshes(NifFile nif, string originalPath, ModelType modelType)
         {
             try
             {
@@ -400,7 +400,7 @@ namespace AllGUD
                 {
                     // TODO selective patching by weapon type would need a filter here
                     ++countPatched;
-                    if (ScriptLess.Configuration.detailedLog)
+                    if (config.detailedLog)
                         Console.WriteLine("\tTemplate: Special Edition");
                     using NifTransformer transformer = new NifTransformer(this, nif, originalPath, modelType, weaponType);
                     transformer.Generate();
@@ -562,7 +562,7 @@ namespace AllGUD
             foreach (var kv in targetMeshes)
             {
                 // loose file wins over BSA contents
-                string originalFile = ScriptLess.Configuration.meshGenInputFolder + kv.Key;
+                string originalFile = config.meshGenInputFolder + kv.Key;
                 if (File.Exists(originalFile))
                 {
                     Console.WriteLine("Transform mesh from loose file {0}", originalFile);

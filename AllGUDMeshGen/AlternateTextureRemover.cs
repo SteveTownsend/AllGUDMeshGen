@@ -28,7 +28,7 @@ namespace AllGUD
             header = blockCache.Header;
             altTextures = textures;
             nifPath = modelPath;
-			destPath = ScriptLess.Configuration.meshGenOutputFolder + newPath;
+			destPath = meshHandler.config.meshGenOutputFolder + newPath;
         }
 
         public void Dispose()

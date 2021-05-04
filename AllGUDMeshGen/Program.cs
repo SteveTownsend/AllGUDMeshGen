@@ -49,7 +49,7 @@ namespace AllGUD
             string meshGenLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.meshGenInputFolder) ?
                 ScriptLess.PatcherState!.DataFolderPath : ScriptLess.Configuration.meshGenInputFolder;
             Console.WriteLine("Process meshes relative to {0}", meshGenLocation);
-            MeshHandler meshHandler = new MeshHandler(meshGenLocation);
+            MeshHandler meshHandler = new MeshHandler(ScriptLess.Configuration!);
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
