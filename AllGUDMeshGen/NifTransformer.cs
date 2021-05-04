@@ -95,7 +95,7 @@ namespace AllGUD
                     var subBlock = blockCache.EditableBlockById<NiAVObject>(childNode.index);
                     if (subBlock == null)
                         continue;
-                    if (ScriptLess.Configuration.detailedLog)
+                    if (meshHandler.config.detailedLog)
                         Console.WriteLine("\tApplying Transform of Block:{0} to its Child:{1}", blockId, childNode.index);
                     ApplyTransformToChild(blockObj, subBlock, childNode.index, isBow);
                 }
@@ -116,7 +116,7 @@ namespace AllGUD
         private void TransformRootChild(NiAVObject blockObj, int blockId)
         {
             // Apply Transforms for all non-shapes. EXCEPT BONES
-            if (ScriptLess.Configuration.detailedLog)
+            if (meshHandler.config.detailedLog)
                 Console.WriteLine("\t\tRemoving Skin @ Block: {0}", blockId);
             if (!RemoveSkin(new HashSet<int>(), blockObj))
             {
@@ -215,7 +215,7 @@ namespace AllGUD
                         var block = blockCache.EditableBlockById<NiAVObject>(childNode.index);
                         if (block == null)
                             continue;
-                        if (ScriptLess.Configuration.detailedLog)
+                        if (meshHandler.config.detailedLog)
                             Console.WriteLine("\t\tRemoving Skin @ Block: {0}", childNode.index);
                         RemoveSkin(skinDone, block);
                     }
@@ -463,7 +463,7 @@ namespace AllGUD
                 // Replace the main node in the dest once all once all editing due to child content is complete
                 int newId = destHeader!.AddBlock(destShape);
                 destNif!.SetParentNode(destShape, parent);
-                if (ScriptLess.Configuration.detailedLog)
+                if (meshHandler.config.detailedLog)
                     Console.WriteLine("Block {0}/{1} copied to dest ", newId, source.GetBlockName());
             }
             else
@@ -501,7 +501,7 @@ namespace AllGUD
                             if (alreadyDone.Contains(childNode.index))
                                 continue;
                             alreadyDone.Add(childNode.index);
-                            if (ScriptLess.Configuration.detailedLog)
+                            if (meshHandler.config.detailedLog)
                                 Console.WriteLine("\t\tCopy-as-child-of @ Child {0}", childNode.index);
                             CopyBlockAsChildOf(block, blockDest);
                         }
@@ -522,7 +522,7 @@ namespace AllGUD
         {
             if (block == null)
                 return;
-            if (ScriptLess.Configuration.detailedLog)
+            if (meshHandler.config.detailedLog)
                 Console.WriteLine("\t\tMirroring Block: {0}", id);
             if (block is BSTriShape || block is NiTriShape || block is NiTriStrips)
             {
@@ -554,11 +554,16 @@ namespace AllGUD
         }
 		
 		// Avoid Access Violation in C++ code
-        private void CheckSetNormals(int id, BSTriShape shape, vectorVector3 rawNormals)
+        private void CheckSetNormals(int id, BSTriShape shape, vectorVector3 rawNormals, int vertexCount)
         {
             if (shape.GetNumVertices() != rawNormals.Count)
             {
-                throw new InvalidOperationException(String.Format("Shape @ {0} in {1} has {2} vertices: trying to update with {3} raw Normals",
+                throw new InvalidOperationException(String.Format("Shape @ {0} in {1} has NumVertices {2}: trying to update with {3} raw Normals",
+                    id, nifPath, shape.GetNumVertices(), rawNormals.Count));
+            }
+            if (shape.GetNumVertices() != vertexCount)
+            {
+                throw new InvalidOperationException(String.Format("Shape @ {0} in {1} has NumVertices {2}: trying to update with {3} VertexData",
                     id, nifPath, shape.GetNumVertices(), rawNormals.Count));
             }
             shape.SetNormals(rawNormals);
@@ -592,7 +597,7 @@ namespace AllGUD
                         newRawNormals.Add(rawNormal);
                     }
                     bsTriShape.vertData = vertexDataList;
-                    CheckSetNormals(id, bsTriShape, newRawNormals);
+                    CheckSetNormals(id, bsTriShape, newRawNormals, vertexDataList.Count);
 
                     using  vectorTriangle newTriangles = new vectorTriangle();
                     using var oldTriangles = bsTriShape.triangles;
@@ -724,8 +729,7 @@ namespace AllGUD
                         newRawNormals.Add(newRawNormal);
                     }
                     bsTriShape.vertData = vertexDataList;
-                    bsTriShape.SetNormals(newRawNormals);
-                    CheckSetNormals(id, bsTriShape, newRawNormals);
+                    CheckSetNormals(id, bsTriShape, newRawNormals, vertexDataList.Count);
                 }
                 catch (Exception e)
                 {
@@ -864,7 +868,7 @@ namespace AllGUD
 
             // Create Mesh
             // Base display mesh, using DSR & AllGUD naming conventions.
-            string destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+            string destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
             //	AllGUDMesh := DestinationPath + SubFolder + BaseFile + 'OnBack.nif'
             if (nifWeapon == WeaponType.Shield)
                 destPath += "OnBack.nif";
@@ -886,7 +890,7 @@ namespace AllGUD
                         // TODO update required for support of Dynamic Display (bUseTemplates false)
                         foreach (var id in rootChildIds)
                         {
-                            if (ScriptLess.Configuration.detailedLog)
+                            if (meshHandler.config.detailedLog)
                                 Console.WriteLine("\t\tCopy-as-child-of @ AllGUD Mesh Root Child {0}", id);
                             CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
                         }
@@ -911,11 +915,11 @@ namespace AllGUD
             // MESH #2 Left-hand DSR-style one-hand melee and staff
             if (nifWeapon == WeaponType.OneHandMelee || nifWeapon == WeaponType.Staff)
             {
-                destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
                 destPath += "Left.nif";
 
                 // Mirror the shapes
-                if (nifWeapon != WeaponType.Staff || ScriptLess.Configuration.mirrorStaves)
+                if (nifWeapon != WeaponType.Staff || meshHandler.config.mirrorStaves)
                 {
                     Console.WriteLine("\tAttempting to generate Left-Hand mesh to mirror Weapon: {0}", destPath);
                     // TODO requires enhancement for dynamic displays
@@ -946,7 +950,7 @@ namespace AllGUD
                             // TODO update required for support of Dynamic Display (bUseTemplates false)
                             foreach (var id in rootChildIds)
                             {
-                                if (ScriptLess.Configuration.detailedLog)
+                                if (meshHandler.config.detailedLog)
                                     Console.WriteLine("\t\tCopy-as-child-of @ Left-Hand mesh Root Child {0}", id);
                                 CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
                             }
@@ -971,7 +975,7 @@ namespace AllGUD
                 // MESH #3 Scabbard by itself for an empty left-hand sheath to use while weapons are drawn
                 if (scabbard != null)
                 {
-                    destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                    destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
                     destPath += "Sheath.nif";
 
                     Console.Write("\tAttempting to generate Left-Scabbard mesh: {0}", destPath);
@@ -985,7 +989,7 @@ namespace AllGUD
                             {
                                 if (rootDest == null)
                                     return;
-                                if (ScriptLess.Configuration.detailedLog)
+                                if (meshHandler.config.detailedLog)
                                     Console.WriteLine("\t\tProcessing Scabbard: {0}", scabbardId);
                                 CopyBlockAsChildOf(scabbard, rootDest);
 
@@ -1002,7 +1006,7 @@ namespace AllGUD
             else if (nifWeapon == WeaponType.Shield)
             {
                 // MESH #4 Shield but translate z by -5 to adjust for backpacks/cloaks
-                destPath = ScriptLess.Configuration.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
                 destPath += "OnBackClk.nif";
                 Console.WriteLine("\tAttempting to generate Shield-Adjusted-for-Cloak mesh: {0}", destPath);
 
@@ -1021,7 +1025,7 @@ namespace AllGUD
                             foreach (var id in rootChildIds)
                             {
                                 // Translate Z of each Child block of Root by -5, using a copy for bespoke editing
-                                if (ScriptLess.Configuration.detailedLog)
+                                if (meshHandler.config.detailedLog)
                                     Console.WriteLine("\t\tCopy-as-child-of @ Shield-Adjusted-for-Cloak Root {0}", id);
                                 NiAVObject block = blockCache.EditableBlockById<NiAVObject>(id);
 

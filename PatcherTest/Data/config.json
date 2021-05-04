@@ -1,0 +1,21 @@
+{
+  "general": {
+    "detailedLog": true
+  },
+  "skeleton": {
+    "inputFolder": "",
+    "outputFolder": ""
+  },
+  "meshGen": {
+    "inputFolder": "../../../Data/",
+    "outputFolder": "../../../Data/Output/",
+    //"oneHandedMelee": true,
+    //"twoHandedMelee": true,
+    //"shieldOnBack": true,
+    //"bowCrossbow": true,
+    //"staff": true,
+    "mirrorStaves": true,
+    //"dynamicDisplay": false,
+    "nameFilter": ""
+  }
+}

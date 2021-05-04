@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 
 namespace AllGUD
 {
-    internal class Config
+    public class Config
     {
         public string skeletonInputFolder { get; }
         public string skeletonOutputFolder { get; }
@@ -17,6 +17,13 @@ namespace AllGUD
         public IList<string[]> nameFilters { get; }
 
         public bool detailedLog { get; }
+
+        private string AsAbsolutePath(string path)
+        {
+            if (String.IsNullOrEmpty(path))
+                return String.Empty;
+            return Path.GetFullPath(path);
+        }
 
         public Config(string configFilePath)
         {
@@ -34,13 +41,13 @@ namespace AllGUD
                 Console.WriteLine(String.Format("Use detailed logging output to console? {0}", detailedLog));
 
                 var skeletonKeys = configJson["skeleton"]!;
-                skeletonInputFolder = (string)skeletonKeys["inputFolder"]!;
-                skeletonOutputFolder = (string)skeletonKeys["outputFolder"]!;
+                skeletonInputFolder = AsAbsolutePath((string)skeletonKeys["inputFolder"]!);
+                skeletonOutputFolder = AsAbsolutePath((string)skeletonKeys["outputFolder"]!);
                 Console.WriteLine(String.Format("Skeleton input folder='{0}' output folder = '{1}'", skeletonInputFolder, skeletonOutputFolder));
 
                 var meshGenKeys = configJson["meshGen"]!;
-                meshGenInputFolder = (string)meshGenKeys["inputFolder"]!;
-                meshGenOutputFolder = (string)meshGenKeys["outputFolder"]!;
+                meshGenInputFolder = AsAbsolutePath((string)meshGenKeys["inputFolder"]!);
+                meshGenOutputFolder = AsAbsolutePath((string)meshGenKeys["outputFolder"]!);
                 Console.WriteLine(String.Format("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder));
 
                 mirrorStaves = (bool)meshGenKeys["mirrorStaves"]!;
