@@ -14,6 +14,7 @@ namespace AllGUD
         public string meshGenOutputFolder { get; }
         
         public bool mirrorStaves { get; }
+        public IList<string[]> skipNifs { get; }
         public IList<string[]> nameFilters { get; }
 
         public bool detailedLog { get; }
@@ -23,6 +24,23 @@ namespace AllGUD
             if (String.IsNullOrEmpty(path))
                 return String.Empty;
             return Path.GetFullPath(path);
+        }
+
+        private IList<string[]> ParseNifFilter(string filterData)
+        {
+            IList<string[]> nifFilter = new List<string[]>();
+            if (!String.IsNullOrEmpty(filterData))
+            {
+                foreach (string filter in filterData.Split('|'))
+                {
+                    string[] filterElements = filter.Split(',');
+                    if (filterElements.Length > 0)
+                    {
+                        nifFilter.Add(filterElements);
+                    }
+                }
+            }
+            return nifFilter;
         }
 
         public Config(string configFilePath)
@@ -52,24 +70,27 @@ namespace AllGUD
 
                 mirrorStaves = (bool)meshGenKeys["mirrorStaves"]!;
                 Console.WriteLine(String.Format("Mirror left staff meshes ? '{0}'", mirrorStaves));
-                string nameFilter = (string)meshGenKeys["nameFilter"]!;
-                nameFilters = new List<string[]>();
-                if (!String.IsNullOrEmpty(nameFilter))
-                {
-                    foreach (string filter in nameFilter.Split('|'))
-                    {
-                        string[] filterElements = filter.Split(',');
-                        if (filterElements.Length > 0)
-                        {
-                            nameFilters.Add(filterElements);
-                        }
-                    }
-                }
+                skipNifs = ParseNifFilter((string)meshGenKeys["skipNifs"]!);
+                nameFilters = ParseNifFilter((string)meshGenKeys["nameFilter"]!);
             }
         }
 
         public bool IsNifValid(string nifPath)
         {
+            // check blacklist, exclude NIF if all substrings in an entry match
+            foreach (string[] filterElements in skipNifs)
+            {
+                if (filterElements
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .All(v => nifPath.Contains(v, StringComparison.OrdinalIgnoreCase)))
+                    return false;
+            }
+            // if not blacklisted, check whitelist if present
+            if (nameFilters.Count == 0)
+            {
+                // allow all iff no filters
+                return true;
+            }
             foreach (string[] filterElements in nameFilters)
             {
                 if (filterElements
@@ -77,7 +98,7 @@ namespace AllGUD
                     .All(v => nifPath.Contains(v, StringComparison.OrdinalIgnoreCase)))
                     return true;
             }
-            return nameFilters.Count == 0;  // allow all iff no filters
+            return false;  // disallow all if none of the >= 1 whitelist filters matched
         }
     }
 }

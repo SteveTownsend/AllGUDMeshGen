@@ -1,3 +1,12 @@
+// Handles Skeleton Patching, Mesh Generation and Alternate Textures removal.
+// Folder names:
+// - all folders must end with a /
+// - it is easier to use / than \
+// - if you use backslash, you must double each one up as \\
+// Not yet implemented:
+// - script options for weapon types
+// - Item Positioner
+// - Dynamic Display
 {
   "general": {
     "detailedLog": false
@@ -9,13 +18,21 @@
   "meshGen": {
     "inputFolder": "j:/SteamLibrary/steamapps/common/Skyrim Special Edition/Data/meshes/",
     "outputFolder": "j:/OmegaLOTD/Tools/mods/AllGUD Patcher/meshes/",
-    //"oneHandedMelee": true,
-    //"twoHandedMelee": true,
-    //"shieldOnBack": true,
-    //"bowCrossbow": true,
-    //"staff": true,
+    // unsupported "oneHandedMelee": true,
+    // unsupported "twoHandedMelee": true,
+    // unsupported "shieldOnBack": true,
+    // unsupported "bowCrossbow": true,
+    // unsupported "staff": true,
     "mirrorStaves": true,
-    //"dynamicDisplay": false,
+    // unsupported "dynamicDisplay": false,
+    // Blacklist NIFs: format is string1,string2|string3|string5,string6 where | separates entries
+    // and each comma-delimited substring in an entry must match for NIF to be excluded
+    // For Animated Armoury:
+    // - download Animated Armoury All Geared Up Derivative from https://www.nexusmods.com/skyrimspecialedition/mods/15394?tab=files
+    // - install to load later than all Animated Armoury meshes
+    // - delete all the meshes except Fists
+    "skipNifs": "NewArmoury,Fists,Claw",
+    // Whitelist NIFs using same format as skipNifs - for testing or advanced users
     "nameFilter": ""
   }
 }
