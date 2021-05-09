@@ -38,37 +38,43 @@ namespace AllGUD
             sortBlocks = true
         };
 
+        public static void WriteLine(string format, params object?[] args)
+        {
+            Configuration.logger.WriteLine(format, args);
+        }
+
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
             patcherState = state;
 
             string configFilePath = Path.Combine(state.ExtraSettingsDataPath, "config.json");
-            configuration = new Config(configFilePath);
+            using (configuration = new Config(configFilePath))
+            {
+                // determine the file path for meshes
+                string meshGenLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.meshGenInputFolder) ?
+                    ScriptLess.PatcherState!.DataFolderPath : ScriptLess.Configuration.meshGenInputFolder;
+                ScriptLess.WriteLine("Process meshes relative to {0}", meshGenLocation);
+                MeshHandler meshHandler = new MeshHandler(ScriptLess.Configuration!);
 
-            // determine the file path for meshes
-            string meshGenLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.meshGenInputFolder) ?
-                ScriptLess.PatcherState!.DataFolderPath : ScriptLess.Configuration.meshGenInputFolder;
-            Console.WriteLine("Process meshes relative to {0}", meshGenLocation);
-            MeshHandler meshHandler = new MeshHandler(ScriptLess.Configuration!);
+                Stopwatch stopWatch = new Stopwatch();
+                stopWatch.Start();
 
-            Stopwatch stopWatch = new Stopwatch();
-            stopWatch.Start();
+                // Patch human skeletons to have the required nodes
+                SkeletonHandler.PatchIfHuman();
+                long skellyTime = stopWatch.ElapsedMilliseconds;
 
-            // Patch human skeletons to have the required nodes
-            SkeletonHandler.PatchIfHuman();
-            long skellyTime = stopWatch.ElapsedMilliseconds;
+                // Analyze records in scope for models and textures
+                meshHandler.Analyze();
+                long analysisTime = stopWatch.ElapsedMilliseconds - skellyTime;
 
-            // Analyze records in scope for models and textures
-            meshHandler.Analyze();
-            long analysisTime = stopWatch.ElapsedMilliseconds - skellyTime;
+                // Transform meshes, including any records with alternate textures
+                meshHandler.TransformMeshes();
+                long meshTime = stopWatch.ElapsedMilliseconds - analysisTime;
 
-            // Transform meshes, including any records with alternate textures
-            meshHandler.TransformMeshes();
-            long meshTime = stopWatch.ElapsedMilliseconds - analysisTime;
-
-            Console.WriteLine("Records analysyis: {0} ms", analysisTime);
-            Console.WriteLine("Mesh transformation: {0} ms", meshTime);
-            Console.WriteLine("Skeleton patching: {0} ms", skellyTime);
+                ScriptLess.WriteLine("Records analysis: {0} ms", analysisTime);
+                ScriptLess.WriteLine("Mesh transformation: {0} ms", meshTime);
+                ScriptLess.WriteLine("Skeleton patching: {0} ms", skellyTime);
+            }
         }
     }
 }

@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 
 namespace AllGUD
 {
-    public class Config
+    public class Config : IDisposable
     {
         public string skeletonInputFolder { get; }
         public string skeletonOutputFolder { get; }
@@ -18,6 +18,9 @@ namespace AllGUD
         public IList<string[]> nameFilters { get; }
 
         public bool detailedLog { get; }
+        public string logFile { get; }
+
+        public Logger logger { get; }
 
         private string AsAbsolutePath(string path)
         {
@@ -56,22 +59,36 @@ namespace AllGUD
                 JObject configJson = JObject.Parse(File.ReadAllText(configFilePath));
                 var generalKeys = configJson["general"]!;
                 detailedLog = (bool)generalKeys["detailedLog"]!;
-                Console.WriteLine(String.Format("Use detailed logging output to console? {0}", detailedLog));
+                logFile = (string)generalKeys["logFile"]!;
+                logger = new Logger(logFile);
+                if (!string.IsNullOrEmpty(logFile))
+                {
+                    logger.WriteLine("Recording progress in log file {0} as well as to console", logFile);
+                }
+                logger.WriteLine("Use detailed logging output to console? {0}", detailedLog);
 
                 var skeletonKeys = configJson["skeleton"]!;
                 skeletonInputFolder = AsAbsolutePath((string)skeletonKeys["inputFolder"]!);
                 skeletonOutputFolder = AsAbsolutePath((string)skeletonKeys["outputFolder"]!);
-                Console.WriteLine(String.Format("Skeleton input folder='{0}' output folder = '{1}'", skeletonInputFolder, skeletonOutputFolder));
+                logger.WriteLine("Skeleton input folder='{0}' output folder = '{1}'", skeletonInputFolder, skeletonOutputFolder);
 
                 var meshGenKeys = configJson["meshGen"]!;
                 meshGenInputFolder = AsAbsolutePath((string)meshGenKeys["inputFolder"]!);
                 meshGenOutputFolder = AsAbsolutePath((string)meshGenKeys["outputFolder"]!);
-                Console.WriteLine(String.Format("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder));
+                logger.WriteLine("MeshGen input folder='{0}' output folder = '{1}'", meshGenInputFolder, meshGenOutputFolder);
 
                 mirrorStaves = (bool)meshGenKeys["mirrorStaves"]!;
-                Console.WriteLine(String.Format("Mirror left staff meshes ? '{0}'", mirrorStaves));
+                logger.WriteLine("Mirror left staff meshes ? '{0}'", mirrorStaves);
                 skipNifs = ParseNifFilter((string)meshGenKeys["skipNifs"]!);
                 nameFilters = ParseNifFilter((string)meshGenKeys["nameFilter"]!);
+            }
+        }
+
+        public void Dispose()
+        {
+            if (logger != null)
+            {
+                logger.Dispose();
             }
         }
 

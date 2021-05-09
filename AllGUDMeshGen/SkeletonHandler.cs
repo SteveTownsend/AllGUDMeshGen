@@ -89,13 +89,13 @@ namespace AllGUD
                 node.GetChildren().AddBlockRef(newID);
 
                 if (ScriptLess.Configuration.detailedLog)
-                    Console.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
+                    ScriptLess.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
                         patchTarget.Key, oldName.get(), newID, newName);
             }
         }
         private static void PatchSkeleton(string nifName)
         {
-            Console.WriteLine("Skeleton Mesh {0}", nifName);
+            ScriptLess.WriteLine("Skeleton Mesh {0}", nifName);
             using (NifFile nif = new NifFile())
             {
                 nif.Load(nifName);
@@ -113,12 +113,12 @@ namespace AllGUD
                     patchedNodes.IntersectWith(headerStrings);
                     if (skeletonPatches.Count == patchedNodes.Count)
                     {
-                        Console.WriteLine("This Skeleton already has the required AllGUD Armor Nodes", nifName);
+                        ScriptLess.WriteLine("This Skeleton already has the required AllGUD Armor Nodes", nifName);
                         return;
                     }
                     if (!skeletonValid.IsSubsetOf(headerStrings))
                     {
-                        Console.WriteLine("This skeleton is missing one or more required Nodes ", nifName);
+                        ScriptLess.WriteLine("This skeleton is missing one or more required Nodes ", nifName);
                     }
                     // Add missing required strings from patch node list
                     ISet<string> nodesToAdd = new HashSet<string>(skeletonPatches);
@@ -126,7 +126,7 @@ namespace AllGUD
                     foreach (string patchNode in nodesToAdd)
                     {
                         if (ScriptLess.Configuration.detailedLog)
-                            Console.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
+                            ScriptLess.WriteLine("This Skeleton needs required AllGUD Armor Node {0}", patchNode);
                         header.AddOrFindStringId(patchNode);
                     }
                     // iterate blocks in the NIF
@@ -154,7 +154,7 @@ namespace AllGUD
                                             using var refValue = refs[1];
                                             if (refKey.get() == "species" && refValue.get() == "Human")
                                             {
-                                                Console.WriteLine("This Skeleton is confirmed to be Human");
+                                                ScriptLess.WriteLine("This Skeleton is confirmed to be Human");
                                                 confirmedHuman = true;
                                                 break;
                                             }
@@ -172,7 +172,7 @@ namespace AllGUD
                                         string relativePath = Path.GetRelativePath(skeletonMeshLocation!, Path.GetDirectoryName(nifName)!);
                                         string destFolder = ScriptLess.Configuration?.skeletonOutputFolder + skeletonMeshFolder + relativePath;
                                         newNif = Path.Join(destFolder, newNif);
-                                        Console.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
+                                        ScriptLess.Configuration!.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
                                         nif.SafeSave(newNif, ScriptLess.saveOptions);
                                     }
                                     break;
@@ -190,7 +190,7 @@ namespace AllGUD
             // determine the file path for meshes
             skeletonMeshLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.skeletonInputFolder) ?
                 (ScriptLess.PatcherState!.DataFolderPath + '/' + skeletonMeshFolder) : ScriptLess.Configuration.skeletonInputFolder;
-            Console.WriteLine("Process meshes relative to {0}", skeletonMeshLocation);
+            ScriptLess.WriteLine("Process meshes relative to {0}", skeletonMeshLocation);
 
             EnumerationOptions scanRule = new EnumerationOptions();
             scanRule.RecurseSubdirectories = true;

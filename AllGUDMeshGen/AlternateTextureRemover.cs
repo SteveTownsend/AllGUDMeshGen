@@ -134,7 +134,7 @@ namespace AllGUD
                 }
                 if (processedSets != inputTextureSets.Count)
                 {
-                    Console.WriteLine("Expected {0} Alternate Texture Sets in {1}, got {2}",
+                    ScriptLess.WriteLine("Expected {0} Alternate Texture Sets in {1}, got {2}",
                         inputTextureSets.Count, nifPath, processedSets);
                 }
 
