@@ -49,7 +49,7 @@ namespace AllGUD
             NiShader shader = blockCache.EditableBlockById<NiShader>(shaderRef.index);
             if (shader == null)
             {
-                Console.WriteLine("Expected NiShader at offset {0} not found", shaderRef.index);
+                ScriptLess.WriteLine("Expected NiShader at offset {0} not found", shaderRef.index);
                 return;
             }
             shader.SetSkinned(false);
@@ -75,7 +75,7 @@ namespace AllGUD
                 }
                 else
                 {
-                    Console.WriteLine("Expected NiTransformController at offset {0} not found", child.controllerRef.index);
+                    ScriptLess.WriteLine("Expected NiTransformController at offset {0} not found", child.controllerRef.index);
                 }
             }
             TransformChildren(child, childId, isBow);
@@ -96,7 +96,7 @@ namespace AllGUD
                     if (subBlock == null)
                         continue;
                     if (meshHandler.config.detailedLog)
-                        Console.WriteLine("\tApplying Transform of Block:{0} to its Child:{1}", blockId, childNode.index);
+                        ScriptLess.WriteLine("\tApplying Transform of Block:{0} to its Child:{1}", blockId, childNode.index);
                     ApplyTransformToChild(blockObj, subBlock, childNode.index, isBow);
                 }
                 if (!isBow)
@@ -117,7 +117,7 @@ namespace AllGUD
         {
             // Apply Transforms for all non-shapes. EXCEPT BONES
             if (meshHandler.config.detailedLog)
-                Console.WriteLine("\t\tRemoving Skin @ Block: {0}", blockId);
+                ScriptLess.WriteLine("\t\tRemoving Skin @ Block: {0}", blockId);
             if (!RemoveSkin(new HashSet<int>(), blockObj))
             {
                 // Don't do this for shapes, Don't remove Transforms of Shapes in case they need to be mirrored
@@ -134,7 +134,7 @@ namespace AllGUD
                         }
                         else
                         {
-                            Console.WriteLine("Expected NiTransformController at offset {0} not found", controllerRef.index);
+                            ScriptLess.WriteLine("Expected NiTransformController at offset {0} not found", controllerRef.index);
                         }
                     }
                 }
@@ -151,12 +151,16 @@ namespace AllGUD
             if (bsTriShape == null)
                 return;
             // Copy Vertex Data from NiSkinPartition
-            bsTriShape.SetVertexData(skinPartition.vertData);
+            using var vertData = skinPartition.vertData;
+            bsTriShape.SetVertexData(vertData);
 
             // Get the first partition, where Triangles and the rest is stored
             // Haven't seen any with multiple partitions.
             // Not sure how that would work, revisit if there's a problem.
-            bsTriShape.SetTriangles(skinPartition.partitions[0].triangles);
+            using var partitions = skinPartition.partitions;
+            using var thePartition = partitions[0];
+            using var triangles = thePartition.triangles;
+            bsTriShape.SetTriangles(triangles);
 
             bsTriShape.UpdateBounds();
         }
@@ -168,13 +172,16 @@ namespace AllGUD
             using var boneRefs = skinBoneRefs.GetRefs();
             foreach (var boneRef in boneRefs)
             {
-                var bone = blockCache.EditableBlockById<NiNode>(boneRef.index);
-                if (bone != null)
+                using (boneRef)
                 {
-                    MatTransform rootTransform = parent.transform;
-                    rootTransform.scale *= bone.transform.scale;
-                    parent.transform = rootTransform;
-                    break;
+                    var bone = blockCache.EditableBlockById<NiNode>(boneRef.index);
+                    if (bone != null)
+                    {
+                        MatTransform rootTransform = parent.transform;
+                        rootTransform.scale *= bone.transform.scale;
+                        parent.transform = rootTransform;
+                        break;
+                    }
                 }
             }
 
@@ -184,7 +191,7 @@ namespace AllGUD
                 NiSkinData skinData = blockCache.EditableBlockById<NiSkinData>(dataRef.index);
                 if (skinData != null)
                 {
-                    MatTransform rootTransform = parent.transform;
+                    using MatTransform rootTransform = parent.transform;
                     rootTransform.scale *= skinData.skinTransform.scale;
                     parent.transform = rootTransform;
                     if (skinData.bones.Count > 0)
@@ -194,7 +201,7 @@ namespace AllGUD
                 }
                 else
                 {
-                    Console.WriteLine("Expected NiSkinData at offset {0} not found", skinInstance.dataRef.index);
+                    ScriptLess.WriteLine("Expected NiSkinData at offset {0} not found", skinInstance.dataRef.index);
                 }
             }
         }
@@ -216,7 +223,7 @@ namespace AllGUD
                         if (block == null)
                             continue;
                         if (meshHandler.config.detailedLog)
-                            Console.WriteLine("\t\tRemoving Skin @ Block: {0}", childNode.index);
+                            ScriptLess.WriteLine("\t\tRemoving Skin @ Block: {0}", childNode.index);
                         RemoveSkin(skinDone, block);
                     }
                 }
@@ -253,15 +260,17 @@ namespace AllGUD
                         }
                         else
                         {
-                            Console.WriteLine("Expected NiSkinPartition at offset {0} not found", partitionRef.index);
+                            ScriptLess.WriteLine("Expected NiSkinPartition at offset {0} not found", partitionRef.index);
                         }
 
                         // Check for all scale transforms.
                         TransformScale(niShape, skinInstance);
+                        // Remove the entire SkinInstance from the dest NIF
+                        niShape.SetSkinInstanceRef((int)niflycpp.NIF_NPOS);
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiSkinInstance at offset {0} not found", skinRef.index);
+                        ScriptLess.WriteLine("Expected NiSkinInstance at offset {0} not found", skinRef.index);
                     }
 
                 }
@@ -329,7 +338,7 @@ namespace AllGUD
                         }
                         else
                         {
-                            Console.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
+                            ScriptLess.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
                         }
                     }
                 }
@@ -355,14 +364,14 @@ namespace AllGUD
                         }
                         else
                         {
-                            Console.WriteLine("Expected NiStringExtraData at offset {0} not found", extraDataRef.index);
+                            ScriptLess.WriteLine("Expected NiStringExtraData at offset {0} not found", extraDataRef.index);
                         }
                     }
                 }
             }
             else
             {
-                Console.WriteLine("Expected BSShaderProperty at offset {0} not found", shaderPropertyRef.index);
+                ScriptLess.WriteLine("Expected BSShaderProperty at offset {0} not found", shaderPropertyRef.index);
             }
             return false;
         }
@@ -395,7 +404,7 @@ namespace AllGUD
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiGeometryData at offset {0} not found", dataRef.index);
+                        ScriptLess.WriteLine("Expected NiGeometryData at offset {0} not found", dataRef.index);
                     }
                 }
 
@@ -409,7 +418,7 @@ namespace AllGUD
                         // remove unnecessary skinning on bows.
                         shaderProperty.SetSkinned(false);
                         // remove controllers and do them manually if needed
-                        shaderProperty.controllerRef = new NiBlockRefNiTimeController((int)niflycpp.NIF_NPOS);
+                        shaderProperty.SetControllerRef((int)niflycpp.NIF_NPOS);
                         using var textureSetRef = shaderProperty.TextureSetRef();
                         if (shaderProperty.HasTextureSet() && !textureSetRef.IsEmpty())
                         {
@@ -422,7 +431,7 @@ namespace AllGUD
                             }
                             else
                             {
-                                Console.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
+                                ScriptLess.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
                             }
                         }
                         int shaderId = destHeader!.AddBlock(shaderProperty);
@@ -430,7 +439,7 @@ namespace AllGUD
                     }
                     else
                     {
-                        Console.WriteLine("Expected BSShaderProperty at offset {0} not found", destShape.ShaderPropertyRef().index);
+                        ScriptLess.WriteLine("Expected BSShaderProperty at offset {0} not found", destShape.ShaderPropertyRef().index);
                     }
                 }
 
@@ -449,7 +458,7 @@ namespace AllGUD
                     }
                     else
                     {
-                        Console.WriteLine("Expected NiAlphaProperty at offset {0} not found", alphaRef.index);
+                        ScriptLess.WriteLine("Expected NiAlphaProperty at offset {0} not found", alphaRef.index);
                     }
                 }
 
@@ -464,7 +473,7 @@ namespace AllGUD
                 int newId = destHeader!.AddBlock(destShape);
                 destNif!.SetParentNode(destShape, parent);
                 if (meshHandler.config.detailedLog)
-                    Console.WriteLine("Block {0}/{1} copied to dest ", newId, source.GetBlockName());
+                    ScriptLess.WriteLine("Block {0}/{1} copied to dest ", newId, source.GetBlockName());
             }
             else
             {
@@ -502,7 +511,7 @@ namespace AllGUD
                                 continue;
                             alreadyDone.Add(childNode.index);
                             if (meshHandler.config.detailedLog)
-                                Console.WriteLine("\t\tCopy-as-child-of @ Child {0}", childNode.index);
+                                ScriptLess.WriteLine("\t\tCopy-as-child-of @ Child {0}", childNode.index);
                             CopyBlockAsChildOf(block, blockDest);
                         }
                     }
@@ -523,7 +532,7 @@ namespace AllGUD
             if (block == null)
                 return;
             if (meshHandler.config.detailedLog)
-                Console.WriteLine("\t\tMirroring Block: {0}", id);
+                ScriptLess.WriteLine("\t\tMirroring Block: {0}", id);
             if (block is BSTriShape || block is NiTriShape || block is NiTriStrips)
             {
                 if (IsBloodMesh(block as NiShape))
@@ -613,7 +622,7 @@ namespace AllGUD
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception for Block Data in BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
+                    ScriptLess.WriteLine("Exception for Block Data in BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
                 }
                 bsTriShape.UpdateBounds();
                 try // Non-vital
@@ -624,7 +633,7 @@ namespace AllGUD
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception updating Tangents in left-hand variant(s) for: {0} in {1} : {2}",
+                    ScriptLess.WriteLine("Exception updating Tangents in left-hand variant(s) for: {0} in {1} : {2}",
                         id, nifPath, e.GetBaseException());
                 }
             }
@@ -682,7 +691,7 @@ namespace AllGUD
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
+                            ScriptLess.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
                                 id, nifPath, e.GetBaseException());
                         }
                     }
@@ -733,7 +742,7 @@ namespace AllGUD
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception for Block Data for BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
+                    ScriptLess.WriteLine("Exception for Block Data for BSTriShape {0} in {1} : {2}", id, nifPath, e.GetBaseException());
                 }
                 bsTriShape.UpdateBounds();
                 try // Non-vital
@@ -744,7 +753,7 @@ namespace AllGUD
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for: {0} in {1} : {2}",
+                    ScriptLess.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for: {0} in {1} : {2}",
                         id, nifPath, e.GetBaseException());
                 }
             }
@@ -800,7 +809,7 @@ namespace AllGUD
                             }
                             catch (Exception e)
                             {
-                                Console.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
+                                ScriptLess.WriteLine("Exception when updating the Tangent for the left-hand variant(s) for NiGeometry {0} in {1} : {2}",
                                     id, nifPath, e.GetBaseException());
                             }
                         }
@@ -857,14 +866,14 @@ namespace AllGUD
 
             if (meshHasController)
             {
-                Console.WriteLine("\tNotification: {0}", nifPath, " contains a NiTransformController block.");
-                Console.WriteLine("\t\tIt will not be transfered to a Static Display. Use Dynamic Display if this " +
+                ScriptLess.WriteLine("\tNotification: {0}", nifPath, " contains a NiTransformController block.");
+                ScriptLess.WriteLine("\t\tIt will not be transfered to a Static Display. Use Dynamic Display if this " +
                     "is meant to be animated while sheathed. Crossbows are not typically animated while sheathed.");
                 // TODO update required for support of Dynamic Display (bUseTemplates false)
             }
 
             // MESH #1
-            Console.WriteLine("\tAttempting to generate AllGUD Mesh for {0}", nifPath);
+            ScriptLess.WriteLine("\tAttempting to generate AllGUD Mesh for {0}", nifPath);
 
             // Create Mesh
             // Base display mesh, using DSR & AllGUD naming conventions.
@@ -891,7 +900,7 @@ namespace AllGUD
                         foreach (var id in rootChildIds)
                         {
                             if (meshHandler.config.detailedLog)
-                                Console.WriteLine("\t\tCopy-as-child-of @ AllGUD Mesh Root Child {0}", id);
+                                ScriptLess.WriteLine("\t\tCopy-as-child-of @ AllGUD Mesh Root Child {0}", id);
                             CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
                         }
                         //if bUseTemplates then begin//TEMPLATE
@@ -906,7 +915,7 @@ namespace AllGUD
                         //Save and finish
                         destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
-                        Console.WriteLine("\tSuccessfully generated AllGUD Mesh {0}", destPath);
+                        ScriptLess.WriteLine("\tSuccessfully generated AllGUD Mesh {0}", destPath);
                         ++meshHandler.countGenerated;
                     }
                 }
@@ -921,7 +930,7 @@ namespace AllGUD
                 // Mirror the shapes
                 if (nifWeapon != WeaponType.Staff || meshHandler.config.mirrorStaves)
                 {
-                    Console.WriteLine("\tAttempting to generate Left-Hand mesh to mirror Weapon: {0}", destPath);
+                    ScriptLess.WriteLine("\tAttempting to generate Left-Hand mesh to mirror Weapon: {0}", destPath);
                     // TODO requires enhancement for dynamic displays
                     //		if not (bUseTemplates) and bMeshHasController then begin
                     //			Log(#9'Warning: ' +FileSrc+ ' contains a NiTransformController and is attempting to mirror into a left-hand mesh. This may not go well. Post to AllGUD if you encounter one of these as it will probably need a custom patch.');
@@ -935,7 +944,7 @@ namespace AllGUD
                 }
                 else
                 {
-                    Console.WriteLine("\tAttempting to generate unmirrored Left-Hand mesh: {0}", destPath);
+                    ScriptLess.WriteLine("\tAttempting to generate unmirrored Left-Hand mesh: {0}", destPath);
                 }
 
                 // Copy edited Blocks
@@ -951,7 +960,7 @@ namespace AllGUD
                             foreach (var id in rootChildIds)
                             {
                                 if (meshHandler.config.detailedLog)
-                                    Console.WriteLine("\t\tCopy-as-child-of @ Left-Hand mesh Root Child {0}", id);
+                                    ScriptLess.WriteLine("\t\tCopy-as-child-of @ Left-Hand mesh Root Child {0}", id);
                                 CopyBlockAsChildOf(blockCache.EditableBlockById<NiAVObject>(id), rootDest);
                             }
                             //	if bUseTemplates then begin	//TEMPLATE
@@ -966,7 +975,7 @@ namespace AllGUD
                             //Save and finish
                             destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
-                            Console.WriteLine("\tSuccessfully generated Left-Hand mesh: {0}", destPath);
+                            ScriptLess.WriteLine("\tSuccessfully generated Left-Hand mesh: {0}", destPath);
                             ++meshHandler.countGenerated;
                         }
                     }
@@ -978,7 +987,7 @@ namespace AllGUD
                     destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
                     destPath += "Sheath.nif";
 
-                    Console.Write("\tAttempting to generate Left-Scabbard mesh: {0}", destPath);
+                    ScriptLess.WriteLine("\tAttempting to generate Left-Scabbard mesh: {0}", destPath);
 
                     // Create File - ALWAYS TEMPLATE FOR SHEATH.NIF
                     using (destNif = TemplateFactory.CreateSSE(nifModel, true))
@@ -990,7 +999,7 @@ namespace AllGUD
                                 if (rootDest == null)
                                     return;
                                 if (meshHandler.config.detailedLog)
-                                    Console.WriteLine("\t\tProcessing Scabbard: {0}", scabbardId);
+                                    ScriptLess.WriteLine("\t\tProcessing Scabbard: {0}", scabbardId);
                                 CopyBlockAsChildOf(scabbard, rootDest);
 
                                 //Save and finish
@@ -999,7 +1008,7 @@ namespace AllGUD
                         }
                     }
 
-                    Console.WriteLine("\tSuccessfully generated Scabbard: {0}", destPath);
+                    ScriptLess.WriteLine("\tSuccessfully generated Scabbard: {0}", destPath);
                     ++meshHandler.countGenerated;
                 }
             }
@@ -1008,7 +1017,7 @@ namespace AllGUD
                 // MESH #4 Shield but translate z by -5 to adjust for backpacks/cloaks
                 destPath = meshHandler.config.meshGenOutputFolder + Path.ChangeExtension(nifPath, null);
                 destPath += "OnBackClk.nif";
-                Console.WriteLine("\tAttempting to generate Shield-Adjusted-for-Cloak mesh: {0}", destPath);
+                ScriptLess.WriteLine("\tAttempting to generate Shield-Adjusted-for-Cloak mesh: {0}", destPath);
 
                 // Edit Blocks
                 // TODO conditional if Dynamic Display added
@@ -1026,7 +1035,7 @@ namespace AllGUD
                             {
                                 // Translate Z of each Child block of Root by -5, using a copy for bespoke editing
                                 if (meshHandler.config.detailedLog)
-                                    Console.WriteLine("\t\tCopy-as-child-of @ Shield-Adjusted-for-Cloak Root {0}", id);
+                                    ScriptLess.WriteLine("\t\tCopy-as-child-of @ Shield-Adjusted-for-Cloak Root {0}", id);
                                 NiAVObject block = blockCache.EditableBlockById<NiAVObject>(id);
 
                                 using var transform = block.transform;
@@ -1042,7 +1051,7 @@ namespace AllGUD
                             //Save and finish
                             destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
-                            Console.WriteLine("\tSuccessfully generated Shield-Adjusted-for-Cloak mesh {0}", destPath);
+                            ScriptLess.WriteLine("\tSuccessfully generated Shield-Adjusted-for-Cloak mesh {0}", destPath);
                             ++meshHandler.countGenerated;
                         }
                     }

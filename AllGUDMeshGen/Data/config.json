@@ -1,5 +1,6 @@
 // Handles Skeleton Patching, Mesh Generation and Alternate Textures removal.
 // Folder names:
+// - you should edit these to match your own setup
 // - all folders must end with a /
 // - it is easier to use / than \
 // - if you use backslash, you must double each one up as \\
@@ -9,6 +10,9 @@
 // - Dynamic Display
 {
   "general": {
+    // Debug assistance. Leave blank "" to just output to console
+    "logFile": "C:/Temp/AllGUD.txt",
+    // More verbose output. Leave false for best performance, true for problem investigation
     "detailedLog": false
   },
   "skeleton": {
