@@ -71,7 +71,8 @@ namespace AllGUD
                         using var shaderRef = shape.ShaderPropertyRef();
                         if (shape.HasShaderProperty() && !shaderRef.IsEmpty())
                         {
-                            BSShaderProperty? shaderProperty = blockCache.EditableBlockById<BSShaderProperty>(shaderRef.index);
+                            using BSShaderProperty? shaderProperty = niflycpp.BlockCache.SafeClone<BSShaderProperty>(
+                                blockCache.EditableBlockById<BSShaderProperty>(shaderRef.index));
                             if (shaderProperty != null)
                             {
                                 BSEffectShaderProperty? effectShader = shaderProperty as BSEffectShaderProperty;
@@ -89,7 +90,8 @@ namespace AllGUD
                                     using var lightingRef = lightingShader.TextureSetRef();
                                     if (!lightingRef.IsEmpty())
                                     {
-                                        BSShaderTextureSet shaderTextures = blockCache.EditableBlockById<BSShaderTextureSet>(lightingRef.index);
+                                        using BSShaderTextureSet shaderTextures = niflycpp.BlockCache.SafeClone<BSShaderTextureSet>(
+                                            blockCache.EditableBlockById<BSShaderTextureSet>(lightingRef.index));
                                         if (shaderTextures != null)
                                         {
                                             // Not every texture block has all paths, avoid error if it does not
