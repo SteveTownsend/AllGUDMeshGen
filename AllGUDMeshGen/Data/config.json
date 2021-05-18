@@ -35,7 +35,8 @@
     // - download Animated Armoury All Geared Up Derivative from https://www.nexusmods.com/skyrimspecialedition/mods/15394?tab=files
     // - install to load later than all Animated Armoury meshes
     // - delete all the meshes except Fists
-    "skipNifs": "NewArmoury,Fists,Claw",
+    // - SkyRe_Main.esp has farmers gloves defined as a sword, crashes during transform
+    "skipNifs": "NewArmoury,Fists,Claw|SkyRe_Main,farmclothes03,farmerglovesm_0",
     // Whitelist NIFs using same format as skipNifs - for testing or advanced users
     "nameFilter": ""
   }
