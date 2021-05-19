@@ -877,7 +877,7 @@ namespace AllGUD
 
             // Create Mesh
             // Base display mesh, using DSR & AllGUD naming conventions.
-            string destPath = meshHandler._settings.meshes.OutputFolder + Path.ChangeExtension(nifPath, null);
+            string destPath = meshHandler._settings.meshes.OutputFolder + MeshHandler.MeshPrefix + Path.ChangeExtension(nifPath, null);
             //	AllGUDMesh := DestinationPath + SubFolder + BaseFile + 'OnBack.nif'
             if (nifWeapon == WeaponType.Shield)
                 destPath += "OnBack.nif";
@@ -924,7 +924,7 @@ namespace AllGUD
             // MESH #2 Left-hand DSR-style one-hand melee and staff
             if (nifWeapon == WeaponType.OneHandMelee || nifWeapon == WeaponType.Staff)
             {
-                destPath = meshHandler._settings.meshes.OutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath = meshHandler._settings.meshes.OutputFolder + MeshHandler.MeshPrefix + Path.ChangeExtension(nifPath, null);
                 destPath += "Left.nif";
 
                 // Mirror the shapes
@@ -984,7 +984,7 @@ namespace AllGUD
                 // MESH #3 Scabbard by itself for an empty left-hand sheath to use while weapons are drawn
                 if (scabbard != null)
                 {
-                    destPath = meshHandler._settings.meshes.OutputFolder + Path.ChangeExtension(nifPath, null);
+                    destPath = meshHandler._settings.meshes.OutputFolder + MeshHandler.MeshPrefix + Path.ChangeExtension(nifPath, null);
                     destPath += "Sheath.nif";
 
                     meshHandler._settings.diagnostics.logger.WriteLine("\tAttempting to generate Left-Scabbard mesh: {0}", destPath);
@@ -1015,7 +1015,7 @@ namespace AllGUD
             else if (nifWeapon == WeaponType.Shield)
             {
                 // MESH #4 Shield but translate z by -5 to adjust for backpacks/cloaks
-                destPath = meshHandler._settings.meshes.OutputFolder + Path.ChangeExtension(nifPath, null);
+                destPath = meshHandler._settings.meshes.OutputFolder + MeshHandler.MeshPrefix + Path.ChangeExtension(nifPath, null);
                 destPath += "OnBackClk.nif";
                 meshHandler._settings.diagnostics.logger.WriteLine("\tAttempting to generate Shield-Adjusted-for-Cloak mesh: {0}", destPath);
 

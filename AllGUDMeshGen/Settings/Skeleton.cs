@@ -15,6 +15,7 @@ namespace AllGUD
         [SynthesisTooltip("Must be a valid writable path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Patcher appends 'meshes/actors/character/' to allow the game to find the output meshes. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Skeleton meshes are written.")]
         public string OutputFolder { get; set; } = "";
+        //public string OutputFolder { get; set; } = "j:/omegalotd/tools/mods/AllGUD Patcher";
 
         public List<string> GetConfigErrors()
         {

@@ -16,6 +16,7 @@ namespace AllGUD
         [SynthesisTooltip("This must be a valid path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Typically this ends with 'meshes/' so files can be read in-game. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Weapon and Armour meshes are written.")]
         public string OutputFolder { get; set; } = "";
+        //public string OutputFolder { get; set; } = "j:/omegalotd/tools/mods/AllGUD Patcher";
 
 
         [SynthesisSettingName("Mirror Staves")]
@@ -123,11 +124,11 @@ namespace AllGUD
             List<string> errors = new List<string>();
             try
             {
-                InputFolder = Helper.EnsureInputPathIsValid(InputFolder);
                 if (String.IsNullOrEmpty(InputFolder))
                 {
                     InputFolder = ScriptLess.PatcherState.DataFolderPath + '/';
                 }
+                InputFolder = Helper.EnsureInputPathIsValid(InputFolder);
             }
             catch (Exception e)
             {
