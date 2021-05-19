@@ -25,8 +25,8 @@ namespace AllGUD
                 if (_logger == null)
                 {
 
-                    _logger = new Logger(LogFile);
-                    if (!string.IsNullOrEmpty(LogFile) && !badFileName)
+                    _logger = new Logger(badFileName ? "" : LogFile);
+                    if (!string.IsNullOrEmpty(LogFile))
                     {
                         _logger.WriteLine("Recording progress in log file {0} as well as to console", LogFile);
                     }
