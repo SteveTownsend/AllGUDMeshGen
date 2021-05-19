@@ -28,7 +28,7 @@ namespace AllGUD
             header = blockCache.Header;
             altTextures = textures;
             nifPath = modelPath;
-			destPath = meshHandler._settings.meshes.OutputFolder + MeshHandler.MeshPrefix + newPath;
+			destPath = meshHandler._settings.meshes.OutputFolder + newPath;
         }
 
         public void Dispose()

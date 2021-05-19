@@ -124,6 +124,10 @@ namespace AllGUD
             try
             {
                 InputFolder = Helper.EnsureInputPathIsValid(InputFolder);
+                if (String.IsNullOrEmpty(InputFolder))
+                {
+                    InputFolder = ScriptLess.PatcherState.DataFolderPath + '/';
+                }
             }
             catch (Exception e)
             {

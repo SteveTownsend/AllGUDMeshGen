@@ -92,10 +92,6 @@ namespace AllGUD
         public MeshHandler(Settings settings)
         {
             _settings = settings;
-            // determine the file path for meshes
-            string meshGenLocation = String.IsNullOrEmpty(settings.meshes.InputFolder) ?
-                ScriptLess.PatcherState!.DataFolderPath : settings.meshes.InputFolder;
-            settings.diagnostics.logger.WriteLine("Input meshes folder {0}", meshGenLocation);
         }
 
         private bool AddMesh(string modelPath, ModelType modelType)
