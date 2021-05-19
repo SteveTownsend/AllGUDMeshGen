@@ -24,11 +24,11 @@ namespace AllGUD
             {
                 if (_logger == null)
                 {
-
-                    _logger = new Logger(badFileName ? "" : LogFile);
-                    if (!string.IsNullOrEmpty(LogFile))
+                    string effectiveFile = badFileName ? "" : LogFile;
+                    _logger = new Logger(effectiveFile);
+                    if (!string.IsNullOrEmpty(effectiveFile))
                     {
-                        _logger.WriteLine("Recording progress in log file {0} as well as to console", LogFile);
+                        _logger.WriteLine("Recording progress in log file {0} as well as to console", effectiveFile);
                     }
                 }
                 return _logger;
