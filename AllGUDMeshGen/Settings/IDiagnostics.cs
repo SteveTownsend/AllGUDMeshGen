@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace AllGUD
 {
-    public interface IDiagnostics
+    public class IDiagnostics : IConfigErrors
     {
-        public string LogFile { get; set; }
-        public bool DetailedLog { get; set; }
-        public Logger logger { get; }
+        virtual public string LogFile { get; set; } = "";
+        virtual public bool DetailedLog { get; set; } = false;
+        [NotNull]
+        virtual public Logger? logger { get; }
     }
 }

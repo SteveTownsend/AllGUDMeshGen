@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Mutagen.Bethesda;
-using Mutagen.Bethesda.Bsa;
 using Mutagen.Bethesda.Skyrim;
 using SSEForms = Mutagen.Bethesda.FormKeys.SkyrimSE;
 using nifly;
@@ -22,6 +22,7 @@ namespace AllGUD
                 modelType = model;
             }
         }
+        [NotNull]
         public ISettings _settings { get; }
         private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
         private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();

@@ -5,23 +5,23 @@ using Mutagen.Bethesda.Synthesis.Settings;
 
 namespace AllGUD
 {
-    public class Meshes : IMeshes, IConfigErrors
+    public class Meshes : IMeshes
     {
         [SynthesisSettingName("Input Folder")]
         [SynthesisTooltip("This must be a valid path in your game setup. Use / separators between path components. Can use relative path to Game Data location e.g. 'mods/AllGUD Output/meshes'. Leave blank to use 'meshes/actors/character/'. Absolute path is allowed. Use / separators between path components.")]
         [SynthesisDescription("Path to search for Weapon and Armour meshes.")]
-        public string InputFolder { get; set; } = "";
+        override public string InputFolder { get; set; } = "";
 
         [SynthesisSettingName("Output Folder")]
         [SynthesisTooltip("This must be a valid path in your game setup. Use / separators between path components. Can use relative path to Game Data location e.g. 'mods/AllGUD Output/meshes'. Absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Weapon and Armour meshes are written.")]
-        public string OutputFolder { get; set; } = "";
+        override public string OutputFolder { get; set; } = "";
 
 
         [SynthesisSettingName("Mirror Staves")]
         [SynthesisTooltip("If unchecked, meshes used in Staff Weapon records will not be included in left-handed mesh generation.")]
         [SynthesisDescription("Generate left hand mesh for Staves.")]
-        public bool MirrorStaves { get; set; } = true;
+        override public bool MirrorStaves { get; set; } = true;
 
         private List<string[]> _nifBlackList = new List<string[]>();
         private static List<string> DefaultBlackList()
@@ -40,7 +40,7 @@ namespace AllGUD
         [SynthesisSettingName("BlackList Patterns")]
         [SynthesisTooltip("Each entry is a comma-separated list of strings. Every string must match for a mesh to be excluded. A mesh that matches a BlackList entry cannot be WhiteListed.")]
         [SynthesisDescription("List of patterns for excluded mesh names.")]
-        public List<string> NifBlackList
+        override public List<string> NifBlackList
         {
             get { return BuildNifFilters(_nifBlackList); }
             set { _nifBlackList = ParseNifFilters(value); }
@@ -59,8 +59,8 @@ namespace AllGUD
         [SynthesisSettingName("WhiteList Patterns")]
         [SynthesisTooltip("Each entry is a comma-separated list of strings. Every string must match for a non-BlackListed mesh to be included.")]
         [SynthesisDescription("List of patterns for included mesh names.")]
-        public List<string> NifWhiteList
-    {
+        override public List<string> NifWhiteList
+        {
             get { return BuildNifFilters(_nifWhiteList); }
             set { _nifWhiteList = ParseNifFilters(value); }
         }
@@ -92,7 +92,7 @@ namespace AllGUD
             return nifFilters;
         }
 
-        public bool IsNifValid(string nifPath)
+        override public bool IsNifValid(string nifPath)
         {
             // check blacklist, exclude NIF if all substrings in an entry match
             foreach (string[] filterElements in fullBlackList)
@@ -118,7 +118,7 @@ namespace AllGUD
             return false;  // disallow all if none of the >= 1 whitelist filters matched
         }
 
-        public List<string> GetConfigErrors()
+        override public List<string> GetConfigErrors()
         {
             List<string> errors = new List<string>();
             try

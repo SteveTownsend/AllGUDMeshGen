@@ -1,9 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace AllGUD
 {
-    public interface IConfigErrors
+    public class IConfigErrors
     {
-        public List<string> GetConfigErrors();
+        virtual public List<string> GetConfigErrors()
+        {
+            throw new InvalidOperationException("must override");
+        }
     }
 }

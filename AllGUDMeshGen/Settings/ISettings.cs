@@ -1,16 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace AllGUD
 {
-    public interface ISettings
+    public class ISettings : IConfigErrors
     {
-        public string allGUDVersion { get; }
-        public IDiagnostics diagnostics { get; set; }
-        public ISkeleton skeleton { get; set; }
-        public IMeshes meshes { get; set; }
+        [NotNull]
+        virtual public IDiagnostics? diagnostics { get; set; }
+        [NotNull]
+        virtual public ISkeleton? skeleton { get; set; }
+        [NotNull]
+        virtual public IMeshes? meshes { get; set; }
     }
 }

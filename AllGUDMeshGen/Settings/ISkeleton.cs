@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace AllGUD
+﻿namespace AllGUD
 {
-    public interface ISkeleton
+    public class ISkeleton : IConfigErrors
     {
-        public string InputFolder { get; set; }
-        public string OutputFolder { get; set; }
+        virtual public string InputFolder { get; set; } = "";
+        virtual public string OutputFolder { get; set; } = "";
     }
 }

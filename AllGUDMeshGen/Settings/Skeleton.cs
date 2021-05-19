@@ -4,19 +4,19 @@ using Mutagen.Bethesda.Synthesis.Settings;
 
 namespace AllGUD
 {
-    public class Skeleton : ISkeleton, IConfigErrors
+    public class Skeleton : ISkeleton
     {
         [SynthesisSettingName("Input Folder")]
         [SynthesisTooltip("Must be a valid readable path in your game setup. Use / separators between path components. Can be relative to Game Data location e.g. 'mods/AllGUD Output/meshes'. Leave blank to use 'meshes/actors/character/'. Absolute path is allowed.")]
         [SynthesisDescription("Path to search for Skeleton meshes.")]
-        public string InputFolder { get; set; } = "";
+        override public string InputFolder { get; set; } = "";
 
         [SynthesisSettingName("Output Folder")]
         [SynthesisTooltip("Must be a valid writable path in your game setup. e.g. 'mods/AllGUD Output'. Use / separators between path components. Absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Skeleton meshes are written.")]
-        public string OutputFolder { get; set; } = "";
+        override public string OutputFolder { get; set; } = "";
 
-        public List<string> GetConfigErrors()
+        override public List<string> GetConfigErrors()
         {
             List<string> errors = new List<string>();
             try

@@ -1,22 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Mutagen.Bethesda.Synthesis.Settings;
 
 namespace AllGUD
 {
-    public class Diagnostics : IDiagnostics, IConfigErrors
+    public class Diagnostics : IDiagnostics
     {
         [SynthesisSettingName("Log File")]
         [SynthesisTooltip("This must be a valid filename on a valid path for your PC. Use / separators between path components. Leave blank to just get Console output.")]
         [SynthesisDescription("Name of log file for diagnostic output.")]
-        public string LogFile { get; set; } = "";
+        override public string LogFile { get; set; } = "";
         [SynthesisSettingName("Detailed Output")]
         [SynthesisTooltip("Set true to include detailed output on transformed mesh block handling. Typically, false is adequate and preferable.")]
         [SynthesisDescription("Flag to trigger more verbose output to console and file.")]
-        public bool DetailedLog { get; set; } = false;
+        override public bool DetailedLog { get; set; } = false;
 
         private Logger? _logger;
-        public Logger logger
+        [NotNull]
+        override public Logger logger
         {
             get
             {
@@ -33,7 +35,7 @@ namespace AllGUD
             }
         }
 
-        public List<string> GetConfigErrors()
+        override public List<string> GetConfigErrors()
         {
             List<string> errors = new List<string>();
             try

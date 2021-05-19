@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
+using System.Collections.Generic;
 
 namespace AllGUD
 {
-    public interface IMeshes
+    public class IMeshes : IConfigErrors
     {
-        public string InputFolder { get; set; }
-        public string OutputFolder { get; set; }
-        public bool MirrorStaves { get; set; }
-        public List<string> NifBlackList { get; set; }
-        public List<string> NifWhiteList { get; set; }
-        public bool IsNifValid(string nifPath);
+        virtual public string InputFolder { get; set; } = "";
+        virtual public string OutputFolder { get; set; } = "";
+        virtual public bool MirrorStaves { get; set; } = true;
+        virtual public List<string> NifBlackList { get; set; } = new();
+        virtual public List<string> NifWhiteList { get; set; } = new();
+        virtual public bool IsNifValid(string nifPath)
+        {
+            throw new InvalidOperationException("must override");
+        }
     }
 }
