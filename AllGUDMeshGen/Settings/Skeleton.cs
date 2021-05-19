@@ -4,7 +4,7 @@ using Mutagen.Bethesda.Synthesis.Settings;
 
 namespace AllGUD
 {
-    public class Skeleton : ISkeleton, IConfigErrors
+    public class Skeleton
     {
         [SynthesisSettingName("Input Folder")]
         [SynthesisTooltip("Must be a valid readable path in your game setup. Use / separators between path components. Can be relative to Game Data location e.g. 'mods/AllGUD Output/meshes'. Leave blank to use 'meshes/actors/character/'. Absolute path is allowed.")]

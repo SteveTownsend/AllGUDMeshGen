@@ -4,7 +4,7 @@ using Mutagen.Bethesda.Synthesis.Settings;
 
 namespace AllGUD
 {
-    public class Diagnostics : IDiagnostics, IConfigErrors
+    public class Diagnostics
     {
         [SynthesisSettingName("Log File")]
         [SynthesisTooltip("This must be a valid filename on a valid path for your PC. Use / separators between path components. Leave blank to just get Console output.")]

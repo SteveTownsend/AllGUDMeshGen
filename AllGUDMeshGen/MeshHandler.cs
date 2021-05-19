@@ -22,7 +22,7 @@ namespace AllGUD
                 modelType = model;
             }
         }
-        public ISettings _settings { get; }
+        public Settings _settings { get; }
         private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
         private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();
         private IDictionary<string, IList<IArmorAddonGetter>> alternateTextureArmorAddons = new Dictionary<string, IList<IArmorAddonGetter>>();
@@ -87,7 +87,7 @@ namespace AllGUD
 
         private int alternateTextureModels;
 
-        public MeshHandler(ISettings settings)
+        public MeshHandler(Settings settings)
         {
             _settings = settings;
         }

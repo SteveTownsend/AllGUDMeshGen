@@ -7,7 +7,7 @@ namespace AllGUD
 {
     internal class SkeletonHandler
     {
-        public ISettings _settings { get; }
+        public Settings _settings { get; }
         private static string? skeletonMeshLocation;
         private static readonly string skeletonMeshFolder = "meshes/actors/character/";
         private static readonly string skeletonMeshFilter = "*skeleton*.nif";
@@ -46,7 +46,7 @@ namespace AllGUD
             "ShieldBack"
         };
 
-        public SkeletonHandler(ISettings settings)
+        public SkeletonHandler(Settings settings)
         {
             _settings = settings;
         }
