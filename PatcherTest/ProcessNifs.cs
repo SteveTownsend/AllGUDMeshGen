@@ -6,16 +6,14 @@ using nifly;
 
 namespace PatcherTest
 {
-    public class UnitTest1
+    public class ProcessNifs
     {
-        private readonly string ConfigLocation = "../../../Data/config.json";
-
         [Fact]
         public void TransformTestNifs()
         {
-            var config = new Config(ConfigLocation);
-            MeshHandler meshHandler = new MeshHandler(config);
-            foreach (string nifFile in Directory.EnumerateFiles(config.meshGenInputFolder, "*.nif"))
+            ISettings settings = new Settings();
+            MeshHandler meshHandler = new MeshHandler(settings);
+            foreach (string nifFile in Directory.EnumerateFiles(settings.meshes.InputFolder, "*.nif"))
             {
                 using NifFile originalNif = new NifFile();
                 originalNif.Load(nifFile);

@@ -28,7 +28,7 @@ namespace AllGUD
             header = blockCache.Header;
             altTextures = textures;
             nifPath = modelPath;
-			destPath = meshHandler.config.meshGenOutputFolder + newPath;
+			destPath = meshHandler._settings.meshes.OutputFolder + newPath;
         }
 
         public void Dispose()
@@ -136,7 +136,7 @@ namespace AllGUD
                 }
                 if (processedSets != inputTextureSets.Count)
                 {
-                    ScriptLess.WriteLine("Expected {0} Alternate Texture Sets in {1}, got {2}",
+                    meshHandler._settings.diagnostics.logger.WriteLine("Expected {0} Alternate Texture Sets in {1}, got {2}",
                         inputTextureSets.Count, nifPath, processedSets);
                 }
 

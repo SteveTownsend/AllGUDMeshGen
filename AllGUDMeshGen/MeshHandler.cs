@@ -22,7 +22,7 @@ namespace AllGUD
                 modelType = model;
             }
         }
-        public Config config { get; }
+        public ISettings _settings { get; }
         private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
         private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();
         private IDictionary<string, IList<IArmorAddonGetter>> alternateTextureArmorAddons = new Dictionary<string, IList<IArmorAddonGetter>>();
@@ -87,16 +87,16 @@ namespace AllGUD
 
         private int alternateTextureModels;
 
-        public MeshHandler(Config configuration)
+        public MeshHandler(ISettings settings)
         {
-            config = configuration;
+            _settings = settings;
         }
 
         private bool AddMesh(string modelPath, ModelType modelType)
         {
-            if (!config.IsNifValid(modelPath))
+            if (!_settings.meshes.IsNifValid(modelPath))
             {
-                ScriptLess.WriteLine("Filters skip {0}", modelPath);
+                _settings.diagnostics.logger.WriteLine("Filters skip {0}", modelPath);
                 ++countSkipped;
                 return false;
             }
@@ -116,7 +116,7 @@ namespace AllGUD
             string modelPath = model.File;
             if (AddMesh(modelPath, modelType))
             {
-                ScriptLess.WriteLine("Model {0}/{1} with type {2} added", record, modelPath, modelType.ToString());
+                _settings.diagnostics.logger.WriteLine("Model {0}/{1} with type {2} added", record, modelPath, modelType.ToString());
             }
 
             // record weapons with alternate textures for patching later in the workflow
@@ -199,7 +199,7 @@ namespace AllGUD
 
                 if (RecordModel(weap.FormKey, modelType, weap.Model))
                 {
-                    ScriptLess.WriteLine("WEAP {0} has alternate textures", weap.FormKey);
+                    _settings.diagnostics.logger.WriteLine("WEAP {0} has alternate textures", weap.FormKey);
                     if (!alternateTextureWeapons.ContainsKey(weap.Model!.File))
                     {
                         alternateTextureWeapons[weap.Model.File] = new List<IWeaponGetter>();
@@ -231,7 +231,7 @@ namespace AllGUD
                     {
                         if (armor.Armature.Count > 1)
                         {
-                            ScriptLess.WriteLine("Armor {0} has {1} Armature models: using the first", armor.FormKey.ToString(), armor.Armature.Count);
+                            _settings.diagnostics.logger.WriteLine("Armour {0} has {1} Armature models: using the first", armor.FormKey.ToString(), armor.Armature.Count);
                         }
                         var arma = armor.Armature[0];
                         if (arma != null)
@@ -247,7 +247,7 @@ namespace AllGUD
                                     currentPath = armorAddon.WorldModel.Male.File;
                                     if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Male))
                                     {
-                                        ScriptLess.WriteLine("ARMA {0} has alternate textures in Male Model", armorAddon.FormKey);
+                                        _settings.diagnostics.logger.WriteLine("ARMA {0} has alternate textures in Male Model", armorAddon.FormKey);
                                         if (!alternateTextureArmorAddons.ContainsKey(armorAddon.WorldModel.Male.File))
                                         {
                                             alternateTextureArmorAddons[armorAddon.WorldModel.Male.File] = new List<IArmorAddonGetter>();
@@ -260,7 +260,7 @@ namespace AllGUD
                                 {
                                     if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Female))
                                     {
-                                        ScriptLess.WriteLine("ARMA {0} has alternate textures in Female Model", armorAddon.FormKey);
+                                        _settings.diagnostics.logger.WriteLine("ARMA {0} has alternate textures in Female Model", armorAddon.FormKey);
                                         if (!alternateTextureArmorAddons.ContainsKey(armorAddon.WorldModel.Female.File))
                                         {
                                             alternateTextureArmorAddons[armorAddon.WorldModel.Female.File] = new List<IArmorAddonGetter>();
@@ -289,7 +289,8 @@ namespace AllGUD
                 {
                     if (AddMesh(modelPath, ModelType.Unknown))
                     {
-                        ScriptLess.WriteLine("Model {0} for STAT {1} added as normalized form {2}", target.Model.File, target.FormKey.ToString(), modelPath);
+                        _settings.diagnostics.logger.WriteLine("Model {0} for STAT {1} added as normalized form {2}",
+                            target.Model.File, target.FormKey.ToString(), modelPath);
                     }
                 }
             }
@@ -302,7 +303,7 @@ namespace AllGUD
             NiNode? node = header.GetBlockById(0) as NiNode;
             if (node == null)
             {
-                ScriptLess.WriteLine("Expected NiNode at offset 0 not found");
+                _settings.diagnostics.logger.WriteLine("Expected NiNode at offset 0 not found");
                 return ModelType.Unknown;
             }
             // analyze 'Prn' in ExtraData for first block
@@ -393,15 +394,15 @@ namespace AllGUD
                 WeaponType weaponType = weaponTypeByModelType[modelType];
                 if (weaponType == WeaponType.Unknown)
                 {
-                    ScriptLess.WriteLine("Skip {0}, cannot categorize {0}", originalPath);
+                    _settings.diagnostics.logger.WriteLine("Skip {0}, cannot categorize {0}", originalPath);
                     ++countSkipped;
                 }
                 else
                 {
                     // TODO selective patching by weapon type would need a filter here
                     ++countPatched;
-                    if (config.detailedLog)
-                        ScriptLess.WriteLine("\tTemplate: Special Edition");
+                    if (_settings.diagnostics.DetailedLog)
+                        _settings.diagnostics.logger.WriteLine("\tTemplate: Special Edition");
                     using NifTransformer transformer = new NifTransformer(this, nif, originalPath, modelType, weaponType);
                     transformer.Generate();
                 }
@@ -409,7 +410,7 @@ namespace AllGUD
             catch (Exception e)
             {
                 ++countFailed;
-                ScriptLess.WriteLine("Exception processing {0}: {1}", originalPath, e.GetBaseException());
+                _settings.diagnostics.logger.WriteLine("Exception processing {0}: {1}", originalPath, e.GetBaseException());
             }
         }
 
@@ -423,7 +424,7 @@ namespace AllGUD
             if (!isMale)
                 newNif += "Female";
             newNif += ".nif";
-            ScriptLess.WriteLine("Alternate Texture set found for {0} for model {1}, create Alt Textures mesh {2}",
+            _settings.diagnostics.logger.WriteLine("Alternate Texture set found for {0} for model {1}, create Alt Textures mesh {2}",
                 record.FormKey, nifPath, newNif);
             return newNif;
         }
@@ -552,7 +553,7 @@ namespace AllGUD
             // no op if empty
             if (targetMeshes.Count == 0)
             {
-                ScriptLess.WriteLine("No meshes require transformation");
+                _settings.diagnostics.logger.WriteLine("No meshes require transformation");
                 return;
             }
             IDictionary<string, string> bsaFiles = new Dictionary<string, string>();
@@ -562,10 +563,10 @@ namespace AllGUD
             foreach (var kv in targetMeshes)
             {
                 // loose file wins over BSA contents
-                string originalFile = config.meshGenInputFolder + kv.Key;
+                string originalFile = _settings.meshes.InputFolder + kv.Key;
                 if (File.Exists(originalFile))
                 {
-                    ScriptLess.WriteLine("Transform mesh from loose file {0}", originalFile);
+                    _settings.diagnostics.logger.WriteLine("Transform mesh from loose file {0}", originalFile);
 
                     IDictionary<string, NifFile> nifs = CheckLooseFileAlternateTextures(kv.Value.originalName, kv.Value.modelType, originalFile);
                     foreach (var pathNif in nifs)
@@ -598,7 +599,7 @@ namespace AllGUD
                         TargetMeshInfo meshInfo = targetMeshes[rawPath];
                         if (bsaDone.ContainsKey(rawPath))
                         {
-                            ScriptLess.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
+                            _settings.diagnostics.logger.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
                             continue;
                         }
 
@@ -614,7 +615,7 @@ namespace AllGUD
                         {
                             using (pathNif.Value)
                             {
-                                ScriptLess.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                _settings.diagnostics.logger.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
                                 GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
                             }
                         }
@@ -626,11 +627,11 @@ namespace AllGUD
             var missingFiles = targetMeshes.Where(kv => !looseDone.Contains(kv.Key) && !bsaDone.ContainsKey(kv.Key)).ToList();
             foreach (var mesh in missingFiles)
             {
-                ScriptLess.WriteLine("Referenced Mesh {0} not found loose or in BSA", mesh.Key);
+                _settings.diagnostics.logger.WriteLine("Referenced Mesh {0} not found loose or in BSA", mesh.Key);
             }
-            ScriptLess.WriteLine("{0} total meshes: found {1} Loose, {2} in BSA, {3} missing files",
+            _settings.diagnostics.logger.WriteLine("{0} total meshes: found {1} Loose, {2} in BSA, {3} missing files",
                 targetMeshes.Count, looseDone.Count, bsaDone.Count, missingFiles.Count);
-            ScriptLess.WriteLine("Generated {0} with {1} for Alternate Textures, Patched {2}, Skipped {3}, Failed {4}",
+            _settings.diagnostics.logger.WriteLine("Generated {0} with {1} for Alternate Textures, Patched {2}, Skipped {3}, Failed {4}",
                 countGenerated, alternateTextureModels, countPatched, countSkipped, countFailed);
         }
 

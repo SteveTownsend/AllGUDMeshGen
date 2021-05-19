@@ -14,13 +14,8 @@ namespace AllGUD
         private static readonly ModKey AllGUDModKey = ModKey.FromNameAndExtension("All Geared Up Derivative.esp");
 
         static Lazy<Settings> _settings = null!;
-        static Settings settings => _settings.Value;
+        static public Settings settings => _settings.Value;
 
-        private static Config? configuration;
-        internal static Config Configuration
-        {
-            get => configuration!;
-        }
         private static IPatcherState<ISkyrimMod, ISkyrimModGetter>? patcherState;
         public static IPatcherState<ISkyrimMod, ISkyrimModGetter> PatcherState
         {
@@ -42,43 +37,45 @@ namespace AllGUD
             sortBlocks = true
         };
 
-        public static void WriteLine(string format, params object?[] args)
-        {
-            Configuration.logger.WriteLine(format, args);
-        }
-
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
             patcherState = state;
 
-            string configFilePath = Path.Combine(state.ExtraSettingsDataPath, "config.json");
-            using (configuration = new Config(configFilePath))
+            // Validate Settings, abort if invalid
+            var settingsErrors = _settings.Value.GetConfigErrors();
+            if (settingsErrors.Count > 0)
             {
-                // determine the file path for meshes
-                string meshGenLocation = String.IsNullOrEmpty(ScriptLess.Configuration!.meshGenInputFolder) ?
-                    ScriptLess.PatcherState!.DataFolderPath : ScriptLess.Configuration.meshGenInputFolder;
-                ScriptLess.WriteLine("Process meshes relative to {0}", meshGenLocation);
-                MeshHandler meshHandler = new MeshHandler(ScriptLess.Configuration!);
-
-                Stopwatch stopWatch = new Stopwatch();
-                stopWatch.Start();
-
-                // Patch human skeletons to have the required nodes
-                SkeletonHandler.PatchIfHuman();
-                long skellyTime = stopWatch.ElapsedMilliseconds;
-
-                // Analyze records in scope for models and textures
-                meshHandler.Analyze();
-                long analysisTime = stopWatch.ElapsedMilliseconds - skellyTime;
-
-                // Transform meshes, including any records with alternate textures
-                meshHandler.TransformMeshes();
-                long meshTime = stopWatch.ElapsedMilliseconds - analysisTime;
-
-                ScriptLess.WriteLine("Records analysis: {0} ms", analysisTime);
-                ScriptLess.WriteLine("Mesh transformation: {0} ms", meshTime);
-                ScriptLess.WriteLine("Skeleton patching: {0} ms", skellyTime);
+                settings.diagnostics.logger.WriteLine("Settings Errors: {0}", settingsErrors.Count);
+                foreach (var error in settingsErrors)
+                {
+                    settings.diagnostics.logger.WriteLine(error);
+                }
+                throw new ArgumentException("Bad Settings: AllGUD Patcher cannot run. Check diagnostic output and fix problems.");
             }
+            // determine the file path for meshes
+            string meshGenLocation = String.IsNullOrEmpty(ScriptLess.settings.meshes.InputFolder) ?
+                ScriptLess.PatcherState!.DataFolderPath : ScriptLess.settings.meshes.InputFolder;
+            settings.diagnostics.logger.WriteLine("Process meshes relative to {0}", meshGenLocation);
+            MeshHandler meshHandler = new MeshHandler(settings);
+
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+
+            // Patch human skeletons to have the required nodes
+            new SkeletonHandler(settings).PatchIfHuman();
+            long skellyTime = stopWatch.ElapsedMilliseconds;
+
+            // Analyze records in scope for models and textures
+            meshHandler.Analyze();
+            long analysisTime = stopWatch.ElapsedMilliseconds - skellyTime;
+
+            // Transform meshes, including any records with alternate textures
+            meshHandler.TransformMeshes();
+            long meshTime = stopWatch.ElapsedMilliseconds - analysisTime;
+
+            settings.diagnostics.logger.WriteLine("Records analysis: {0} ms", analysisTime);
+            settings.diagnostics.logger.WriteLine("Mesh transformation: {0} ms", meshTime);
+            settings.diagnostics.logger.WriteLine("Skeleton patching: {0} ms", skellyTime);
         }
     }
 }
