@@ -6,6 +6,8 @@ namespace AllGUD
 {
     public class Diagnostics
     {
+        private bool badFileName;
+
         [SynthesisSettingName("Log File")]
         [SynthesisTooltip("This must be a valid filename on a valid path for your PC. Use / separators between path components. Leave blank to just get Console output.")]
         [SynthesisDescription("Name of log file for diagnostic output.")]
@@ -24,7 +26,7 @@ namespace AllGUD
                 {
 
                     _logger = new Logger(LogFile);
-                    if (!string.IsNullOrEmpty(LogFile))
+                    if (!string.IsNullOrEmpty(LogFile) && !badFileName)
                     {
                         _logger.WriteLine("Recording progress in log file {0} as well as to console", LogFile);
                     }
@@ -42,6 +44,7 @@ namespace AllGUD
             }
             catch (Exception e)
             {
+                badFileName = true;
                 errors.Add(e.GetBaseException().ToString());
             }
             return errors;
