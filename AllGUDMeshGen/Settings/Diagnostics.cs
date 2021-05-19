@@ -9,7 +9,7 @@ namespace AllGUD
         private bool badFileName;
 
         [SynthesisSettingName("Log File")]
-        [SynthesisTooltip("This must be a valid filename on a valid path for your PC. Use / separators between path components. Leave blank to just get Console output.")]
+        [SynthesisTooltip("This must be a valid writable filename in a valid path on your computer. Leave blank to just get Console output.")]
         [SynthesisDescription("Name of log file for diagnostic output.")]
         public string LogFile { get; set; } = "";
         [SynthesisSettingName("Detailed Output")]

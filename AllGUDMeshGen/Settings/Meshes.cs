@@ -8,12 +8,12 @@ namespace AllGUD
     public class Meshes
     {
         [SynthesisSettingName("Input Folder")]
-        [SynthesisTooltip("This must be a valid path in your game setup. Use / separators between path components. Can use relative path to Game Data location e.g. 'mods/AllGUD Output/meshes'. Leave blank to use 'meshes/actors/character/'. Absolute path is allowed. Use / separators between path components.")]
+        [SynthesisTooltip("This must be a valid path on your computer. Leave blank to use Game Data location in your Mod Manager VFS. Can use relative path to current directory, which is usually the VFS Game Data location. Typically this ends with 'meshes/', where NIF files are read in-game. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path to search for Weapon and Armour meshes.")]
-        public string InputFolder { get; set; } = "";
+        public string InputFolder { get; set; } = "./meshes/";
 
         [SynthesisSettingName("Output Folder")]
-        [SynthesisTooltip("This must be a valid path in your game setup. Use / separators between path components. Can use relative path to Game Data location e.g. 'mods/AllGUD Output/meshes'. Absolute path is allowed.")]
+        [SynthesisTooltip("This must be a valid path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Typically this ends with 'meshes/' so files can be read in-game. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Weapon and Armour meshes are written.")]
         public string OutputFolder { get; set; } = "";
 
@@ -136,6 +136,10 @@ namespace AllGUD
             catch (Exception e)
             {
                 errors.Add(e.GetBaseException().ToString());
+            }
+            if (InputFolder == OutputFolder)
+            {
+                errors.Add(String.Format("Mesh Generation cannot use {0} as both Input and Output Folder", InputFolder));
             }
             return errors;
         }

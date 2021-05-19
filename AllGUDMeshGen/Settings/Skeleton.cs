@@ -7,12 +7,12 @@ namespace AllGUD
     public class Skeleton
     {
         [SynthesisSettingName("Input Folder")]
-        [SynthesisTooltip("Must be a valid readable path in your game setup. Use / separators between path components. Can be relative to Game Data location e.g. 'mods/AllGUD Output/meshes'. Leave blank to use 'meshes/actors/character/'. Absolute path is allowed.")]
+        [SynthesisTooltip("Must be a valid readable path on your computer. Leave blank to use Game Data location in your Mod Manager VFS + 'meshes/actors/character/'. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path to search for Skeleton meshes.")]
         public string InputFolder { get; set; } = "";
 
         [SynthesisSettingName("Output Folder")]
-        [SynthesisTooltip("Must be a valid writable path in your game setup. e.g. 'mods/AllGUD Output'. Use / separators between path components. Absolute path is allowed.")]
+        [SynthesisTooltip("Must be a valid writable path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Patcher appends 'meshes/actors/character/' to allow the game to find the output meshes. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Skeleton meshes are written.")]
         public string OutputFolder { get; set; } = "";
 
@@ -34,6 +34,10 @@ namespace AllGUD
             catch (Exception e)
             {
                 errors.Add(e.GetBaseException().ToString());
+            }
+            if (InputFolder == OutputFolder)
+            {
+                errors.Add(String.Format("Skeleton Patcher cannot use {0} as both Input and Output Folder", InputFolder));
             }
             return errors;
         }
