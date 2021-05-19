@@ -52,10 +52,6 @@ namespace AllGUD
                 }
                 throw new ArgumentException("Bad Settings: AllGUD Patcher cannot run. Check diagnostic output and fix problems.");
             }
-            // determine the file path for meshes
-            string meshGenLocation = String.IsNullOrEmpty(settings.meshes.InputFolder) ?
-                ScriptLess.PatcherState!.DataFolderPath : settings.meshes.InputFolder;
-            settings.diagnostics.logger.WriteLine("Process meshes relative to {0}", meshGenLocation);
             MeshHandler meshHandler = new MeshHandler(settings);
 
             Stopwatch stopWatch = new Stopwatch();

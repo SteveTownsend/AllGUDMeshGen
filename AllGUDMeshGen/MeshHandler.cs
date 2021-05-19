@@ -23,6 +23,8 @@ namespace AllGUD
             }
         }
         public Settings _settings { get; }
+        public static readonly string MeshPrefix = "meshes\\";
+
         private IDictionary<string, TargetMeshInfo> targetMeshes = new Dictionary<string, TargetMeshInfo>();
         private IDictionary<string, IList<IWeaponGetter>> alternateTextureWeapons = new Dictionary<string, IList<IWeaponGetter>>();
         private IDictionary<string, IList<IArmorAddonGetter>> alternateTextureArmorAddons = new Dictionary<string, IList<IArmorAddonGetter>>();
@@ -90,6 +92,10 @@ namespace AllGUD
         public MeshHandler(Settings settings)
         {
             _settings = settings;
+            // determine the file path for meshes
+            string meshGenLocation = String.IsNullOrEmpty(settings.meshes.InputFolder) ?
+                ScriptLess.PatcherState!.DataFolderPath : settings.meshes.InputFolder;
+            settings.diagnostics.logger.WriteLine("Input meshes folder {0}", meshGenLocation);
         }
 
         private bool AddMesh(string modelPath, ModelType modelType)
@@ -563,7 +569,7 @@ namespace AllGUD
             foreach (var kv in targetMeshes)
             {
                 // loose file wins over BSA contents
-                string originalFile = _settings.meshes.InputFolder + kv.Key;
+                string originalFile = _settings.meshes.InputFolder + MeshPrefix + kv.Key;
                 if (File.Exists(originalFile))
                 {
                     _settings.diagnostics.logger.WriteLine("Transform mesh from loose file {0}", originalFile);
@@ -581,7 +587,7 @@ namespace AllGUD
                 else
                 {
                     // check for this file in archives
-                    bsaFiles.Add("meshes\\" + kv.Key, kv.Key);
+                    bsaFiles.Add(MeshPrefix + kv.Key, kv.Key);
                 }
             }
 

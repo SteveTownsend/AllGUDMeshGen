@@ -10,7 +10,7 @@ namespace AllGUD
         [SynthesisSettingName("Input Folder")]
         [SynthesisTooltip("This must be a valid path on your computer. Leave blank to use Game Data location in your Mod Manager VFS. Can use relative path to current directory, which is usually the VFS Game Data location. Typically this ends with 'meshes/', where NIF files are read in-game. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path to search for Weapon and Armour meshes.")]
-        public string InputFolder { get; set; } = "./meshes/";
+        public string InputFolder { get; set; } = "";
 
         [SynthesisSettingName("Output Folder")]
         [SynthesisTooltip("This must be a valid path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Typically this ends with 'meshes/' so files can be read in-game. Relative or absolute path is allowed.")]
