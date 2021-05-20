@@ -468,23 +468,25 @@ namespace AllGUD
             return result;
         }
 
-        private void OverrideArmorAddonMaleModel(IArmorAddonGetter armorAddon, string newPath)
+        private IArmorAddonGetter OverrideArmorAddonMaleModel(IArmorAddonGetter armorAddon, string newPath)
         {
             lock (recordLock)
             {
                 var newAddon = ScriptLess.PatcherState.PatchMod.ArmorAddons.GetOrAddAsOverride(armorAddon);
                 newAddon.WorldModel!.Male!.File = newPath;
                 newAddon.WorldModel.Male.AlternateTextures = null;
+                return newAddon;
             }
         }
 
-        private void OverrideArmorAddonFemaleModel(IArmorAddonGetter armorAddon, string newPath)
+        private IArmorAddonGetter OverrideArmorAddonFemaleModel(IArmorAddonGetter armorAddon, string newPath)
         {
             lock (recordLock)
             {
                 var newAddon = ScriptLess.PatcherState.PatchMod.ArmorAddons.GetOrAddAsOverride(armorAddon);
                 newAddon.WorldModel!.Female!.File = newPath;
                 newAddon.WorldModel.Female.AlternateTextures = null;
+                return newAddon;
             }
         }
 
@@ -494,37 +496,38 @@ namespace AllGUD
             IDictionary<string, NifFile> result = new Dictionary<string, NifFile>();
             foreach (IArmorAddonGetter armorAddon in armorAddons)
             {
-                if (armorAddon.WorldModel != null)
+                IArmorAddonGetter effectiveAddon = armorAddon;
+                if (effectiveAddon.WorldModel != null)
                 {
                     string maleNif = "";
                     bool isMale = true;
-                    if (armorAddon.WorldModel.Male != null)
+                    if (effectiveAddon.WorldModel.Male != null && effectiveAddon.WorldModel.Male.AlternateTextures != null)
                     {
-                        maleNif = armorAddon.WorldModel.Male.File;
-                        if (!String.IsNullOrEmpty(maleNif) && armorAddon.WorldModel.Male.AlternateTextures != null)
+                        maleNif = effectiveAddon.WorldModel.Male.File;
+                        if (!String.IsNullOrEmpty(maleNif))
                         {
-                            string newPath = AlternateTextureMeshName(maleNif, armorAddon, isMale);
+                            string newPath = AlternateTextureMeshName(maleNif, effectiveAddon, isMale);
                             using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
-                                this, originalNif, armorAddon.WorldModel.Male.AlternateTextures, modelPath, newPath);
+                                this, originalNif, effectiveAddon.WorldModel.Male.AlternateTextures, modelPath, newPath);
                             NifFile newNif = alternateTextureRemover.Execute();
                             result[newPath] = newNif;
 
-                            OverrideArmorAddonMaleModel(armorAddon, newPath);
+                            effectiveAddon = OverrideArmorAddonMaleModel(effectiveAddon, newPath);
                         }
                     }
                     isMale = false;
-                    if (armorAddon.WorldModel.Female != null && armorAddon.WorldModel.Female.AlternateTextures != null)
+                    if (effectiveAddon.WorldModel!.Female != null && effectiveAddon.WorldModel.Female.AlternateTextures != null)
                     {
-                        string femaleNif = armorAddon.WorldModel.Female.File;
+                        string femaleNif = effectiveAddon.WorldModel.Female.File;
                         if (!String.IsNullOrEmpty(femaleNif) && maleNif != femaleNif)
                         {
-                            string newPath = AlternateTextureMeshName(femaleNif, armorAddon, isMale);
+                            string newPath = AlternateTextureMeshName(femaleNif, effectiveAddon, isMale);
                             using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
-                                this, originalNif, armorAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
+                                this, originalNif, effectiveAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
                             NifFile newNif = alternateTextureRemover.Execute();
                             result[newPath] = newNif;
 
-                            OverrideArmorAddonFemaleModel(armorAddon, newPath);
+                            OverrideArmorAddonFemaleModel(effectiveAddon, newPath);
                         }
                     }
                 }
