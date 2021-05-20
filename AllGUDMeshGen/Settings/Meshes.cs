@@ -8,12 +8,12 @@ namespace AllGUD
     public class Meshes
     {
         [SynthesisSettingName("Input Folder")]
-        [SynthesisTooltip("This must be a valid path on your computer. Leave blank to use Game Data location in your Mod Manager VFS. Can use relative path to current directory, which is usually the VFS Game Data location. Typically this ends with 'meshes/', where NIF files are read in-game. Relative or absolute path is allowed.")]
+        [SynthesisTooltip("This must be a valid path on your computer. Leave blank to use Game Data location in your Mod Manager VFS. Can use relative path to current directory, which is usually the VFS Game Data location. The suffix 'meshes/', where NIF files are read in-game, is added in the patcher and not needed here. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path to search for Weapon and Armour meshes.")]
         public string InputFolder { get; set; } = "";
 
         [SynthesisSettingName("Output Folder")]
-        [SynthesisTooltip("This must be a valid path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Typically this ends with 'meshes/' so files can be read in-game. Relative or absolute path is allowed.")]
+        [SynthesisTooltip("This must be a valid path on your computer. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. The suffix 'meshes/', where NIF files are read in-game, is added in the patcher and not needed here. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where transformed Weapon and Armour meshes are written.")]
         public string OutputFolder { get; set; } = "";
         //public string OutputFolder { get; set; } = "j:/omegalotd/tools/mods/AllGUD Patcher";
