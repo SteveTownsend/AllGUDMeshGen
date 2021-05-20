@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Collections.Generic;
 using nifly;
 using ModelType = AllGUD.MeshHandler.ModelType;
@@ -916,7 +917,7 @@ namespace AllGUD
                         destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
                         meshHandler._settings.diagnostics.logger.WriteLine("\tSuccessfully generated AllGUD Mesh {0}", destPath);
-                        ++meshHandler.countGenerated;
+                        Interlocked.Increment(ref meshHandler.countGenerated);
                     }
                 }
             }
@@ -976,7 +977,7 @@ namespace AllGUD
                             destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
                             meshHandler._settings.diagnostics.logger.WriteLine("\tSuccessfully generated Left-Hand mesh: {0}", destPath);
-                            ++meshHandler.countGenerated;
+                            Interlocked.Increment(ref meshHandler.countGenerated);
                         }
                     }
                 }
@@ -1009,7 +1010,7 @@ namespace AllGUD
                     }
 
                     meshHandler._settings.diagnostics.logger.WriteLine("\tSuccessfully generated Scabbard: {0}", destPath);
-                    ++meshHandler.countGenerated;
+                    Interlocked.Increment(ref meshHandler.countGenerated);
                 }
             }
             else if (nifWeapon == WeaponType.Shield)
@@ -1052,7 +1053,7 @@ namespace AllGUD
                             destNif.SafeSave(destPath, ScriptLess.saveOptions);
 
                             meshHandler._settings.diagnostics.logger.WriteLine("\tSuccessfully generated Shield-Adjusted-for-Cloak mesh {0}", destPath);
-                            ++meshHandler.countGenerated;
+                            Interlocked.Increment(ref meshHandler.countGenerated);
                         }
                     }
                 }
