@@ -261,7 +261,7 @@ namespace AllGUD
                                         AddMesh(armorAddon.WorldModel.Male.File, ModelType.Shield);
                                     }
                                 }
-                                if (armorAddon.WorldModel.Female != null && armorAddon.WorldModel.Female.File != currentPath)
+                                if (armorAddon.WorldModel.Female != null)
                                 {
                                     if (RecordModel(armorAddon.FormKey, ModelType.Shield, armorAddon.WorldModel.Female))
                                     {
@@ -519,13 +519,17 @@ namespace AllGUD
                     if (effectiveAddon.WorldModel!.Female != null && effectiveAddon.WorldModel.Female.AlternateTextures != null)
                     {
                         string femaleNif = effectiveAddon.WorldModel.Female.File;
-                        if (!String.IsNullOrEmpty(femaleNif) && maleNif != femaleNif)
+                        if (!String.IsNullOrEmpty(femaleNif))
                         {
                             string newPath = AlternateTextureMeshName(femaleNif, effectiveAddon, isMale);
-                            using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
-                                this, originalNif, effectiveAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
-                            NifFile newNif = alternateTextureRemover.Execute();
-                            result[newPath] = newNif;
+                            // Do not regenerate mesh if this was done above for male model
+                            if (maleNif != femaleNif)
+                            {
+                                using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
+                                    this, originalNif, effectiveAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
+                                NifFile newNif = alternateTextureRemover.Execute();
+                                result[newPath] = newNif;
+                            }
 
                             OverrideArmorAddonFemaleModel(effectiveAddon, newPath);
                         }
