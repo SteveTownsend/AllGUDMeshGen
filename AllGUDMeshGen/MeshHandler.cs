@@ -620,7 +620,9 @@ namespace AllGUD
                 foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath, new ModKey()))
                 {
                     var bsaReader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
-                    Parallel.ForEach(bsaReader.Files.Where(candidate => bsaFiles.ContainsKey(candidate.Path.ToLower())), bsaMesh =>
+                    bsaReader.Files.AsParallel().
+                        Where(candidate => bsaFiles.ContainsKey(candidate.Path.ToLower())).
+                        ForAll(bsaMesh =>
                     {
                         string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
                         TargetMeshInfo meshInfo = targetMeshes[rawPath];
