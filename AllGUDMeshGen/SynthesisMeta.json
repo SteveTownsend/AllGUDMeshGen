@@ -1,8 +1,10 @@
 {
   "Nickname": "AllGUDMeshGen",
-  "Visibility": "Exclude",
-  "OneLineDescription": "",
-  "LongDescription": "",
+  "Visibility": "Visible",
+  "OneLineDescription": "All-in-one mesh patcher and alternate texture handler for All Geared Up Derivative (AllGUD)",
+  "LongDescription": "Combines the functions of the three xEdit scripts: skeleton patcher, mesh generator and alternate texture handler",
   "PreferredAutoVersioning": "Default",
-  "RequiredMods": []
+  "RequiredMods": [
+    "All Geared Up Derivative.esp"
+  ]
 }
