@@ -501,12 +501,13 @@ namespace AllGUD
                 {
                     string maleNif = "";
                     bool isMale = true;
+                    string newPath = "";
                     if (effectiveAddon.WorldModel.Male != null && effectiveAddon.WorldModel.Male.AlternateTextures != null)
                     {
                         maleNif = effectiveAddon.WorldModel.Male.File;
                         if (!String.IsNullOrEmpty(maleNif))
                         {
-                            string newPath = AlternateTextureMeshName(maleNif, effectiveAddon, isMale);
+                            newPath = AlternateTextureMeshName(maleNif, effectiveAddon, isMale);
                             using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
                                 this, originalNif, effectiveAddon.WorldModel.Male.AlternateTextures, modelPath, newPath);
                             NifFile newNif = alternateTextureRemover.Execute();
@@ -521,16 +522,16 @@ namespace AllGUD
                         string femaleNif = effectiveAddon.WorldModel.Female.File;
                         if (!String.IsNullOrEmpty(femaleNif))
                         {
-                            string newPath = AlternateTextureMeshName(femaleNif, effectiveAddon, isMale);
                             // Do not regenerate mesh if this was done above for male model
                             if (maleNif != femaleNif)
                             {
+                                newPath = AlternateTextureMeshName(femaleNif, effectiveAddon, isMale);
                                 using AlternateTextureRemover alternateTextureRemover = new AlternateTextureRemover(
                                     this, originalNif, effectiveAddon.WorldModel.Female.AlternateTextures, modelPath, newPath);
                                 NifFile newNif = alternateTextureRemover.Execute();
                                 result[newPath] = newNif;
                             }
-
+                            // record has to be stripped of alt textures and model updated, even if we use the same model
                             OverrideArmorAddonFemaleModel(effectiveAddon, newPath);
                         }
                     }
