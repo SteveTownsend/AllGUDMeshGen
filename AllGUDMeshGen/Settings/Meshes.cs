@@ -43,13 +43,14 @@ namespace AllGUD
         [SynthesisDescription("List of patterns for excluded mesh names.")]
         public List<string> NifBlackList
         {
-            get { return BuildNifFilters(_nifBlackList); }
-            set { _nifBlackList = ParseNifFilters(value); }
+            get { return NifFilters.BuildNifFilters(_nifBlackList); }
+            set { _nifBlackList = NifFilters.ParseNifFilters(value); }
         }
         private List<string[]>? _fullBlackList;
         private List<string[]> fullBlackList
         {
-            get {
+            get
+            {
                 if (_fullBlackList is null)
                     _fullBlackList = new List<string[]>(_nifBlackList.Concat(_defaultNifBlackList));
                 return _fullBlackList;
@@ -61,7 +62,7 @@ namespace AllGUD
         [SynthesisTooltip("Each entry is a comma-separated list of strings. Every string must match for a non-BlackListed mesh to be included.")]
         [SynthesisDescription("List of patterns for included mesh names.")]
         public List<string> NifWhiteList
-    {
+        {
             get { return BuildNifFilters(_nifWhiteList); }
             set { _nifWhiteList = ParseNifFilters(value); }
         }
