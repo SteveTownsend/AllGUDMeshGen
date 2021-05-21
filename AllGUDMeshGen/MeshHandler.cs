@@ -444,6 +444,7 @@ namespace AllGUD
             }
         }
 
+        // Alternate textures logic from 'AllGUD AlternateTextureModelsplosion.pas'
         private IDictionary<string, NifFile> GenerateAlternateWeaponMeshes(
             NifFile originalNif, string modelPath, IList<IWeaponGetter> weapons, ModelType modelType)
         {
@@ -583,6 +584,7 @@ namespace AllGUD
             return GenerateAlternateTextureMeshes(originalNif, nifOriginalPath, modelType);
         }
 
+        // Mesh Generation logic from 'AllGUD Weapon Mesh Generator.pas'
         internal void TransformMeshes()
         {
             // no op if empty
@@ -672,7 +674,6 @@ namespace AllGUD
                 countGenerated, alternateTextureModels, countPatched, countSkipped, countFailed);
         }
 
-        // Mesh Generation logic from AllGUD Weapon Mesh Generator.pas
         internal void Analyze()
         {
             // inventory the meshes to be transformed

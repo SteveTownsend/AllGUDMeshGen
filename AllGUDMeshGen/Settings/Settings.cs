@@ -17,11 +17,15 @@ namespace AllGUD
         [SynthesisSettingName("Meshes for Weapons and Armour")]
         public Meshes meshes { get; set; } = new Meshes();
 
+        [SynthesisSettingName("Item Positioning")]
+        public ItemPosition itemPosition { get; set; } = new ItemPosition();
+
         public List<string> GetConfigErrors()
         {
             var errors = diagnostics.GetConfigErrors();
             errors.AddRange(skeleton.GetConfigErrors());
             errors.AddRange(meshes.GetConfigErrors());
+            errors.AddRange(itemPosition.GetConfigErrors());
             return errors;
         }
     }

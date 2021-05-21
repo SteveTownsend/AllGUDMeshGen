@@ -52,7 +52,6 @@ namespace AllGUD
                 }
                 throw new ArgumentException("Bad Settings: AllGUD Patcher cannot run. Check diagnostic output and fix problems.");
             }
-            MeshHandler meshHandler = new MeshHandler(settings);
 
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
@@ -62,6 +61,7 @@ namespace AllGUD
             long skellyTime = stopWatch.ElapsedMilliseconds;
 
             // Analyze records in scope for models and textures
+            MeshHandler meshHandler = new MeshHandler(settings);
             meshHandler.Analyze();
             long analysisTime = stopWatch.ElapsedMilliseconds - skellyTime;
 
@@ -69,9 +69,13 @@ namespace AllGUD
             meshHandler.TransformMeshes();
             long meshTime = stopWatch.ElapsedMilliseconds - analysisTime;
 
+            new ItemPositioner(settings).Execute();
+            long itemPosTime = stopWatch.ElapsedMilliseconds - meshTime;
+
+            settings.diagnostics.logger.WriteLine("Skeleton patching: {0} ms", skellyTime);
             settings.diagnostics.logger.WriteLine("Records analysis: {0} ms", analysisTime);
             settings.diagnostics.logger.WriteLine("Mesh transformation: {0} ms", meshTime);
-            settings.diagnostics.logger.WriteLine("Skeleton patching: {0} ms", skellyTime);
+            settings.diagnostics.logger.WriteLine("Item Positioning: {0} ms", itemPosTime);
         }
     }
 }

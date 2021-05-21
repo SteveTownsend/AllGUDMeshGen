@@ -190,7 +190,7 @@ namespace AllGUD
             }
         }
 
-        // Skeleton Patcher logic from AllGUD Skeleton Patcher.pas
+        // Skeleton Patcher logic from 'AllGUD Skeleton Patcher.pas'
         public void PatchIfHuman()
         {
             // determine the file path for meshes
