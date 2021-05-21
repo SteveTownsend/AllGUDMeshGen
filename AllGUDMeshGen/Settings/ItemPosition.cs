@@ -15,8 +15,8 @@ namespace AllGUD
         [SynthesisSettingName("Output Folder")]
         [SynthesisTooltip("Must be a valid writable path on your computer. Allow patch-provided Item Position meshes to load after this, to override default Item Positioning with Custom Meshes. Typically this points to a new mod directory in your Mod Manager VFS, e.g. 'D:/ModdedSkyrim/mods/AllGUD Output'. Patcher appends 'meshes/' to allow the game to find the output meshes. Relative or absolute path is allowed.")]
         [SynthesisDescription("Path where Item Positioning meshes are written.")]
-        //public string OutputFolder { get; set; } = "";
-        public string OutputFolder { get; set; } = "j:/omegalotd/tools/mods/AllGUD Patcher";
+        public string OutputFolder { get; set; } = "";
+        //public string OutputFolder { get; set; } = "j:/omegalotd/tools/mods/AllGUD Patcher";
 
         private List<string[]> _nifBlackList = new List<string[]>();
         private static List<string> DefaultBlackList()
