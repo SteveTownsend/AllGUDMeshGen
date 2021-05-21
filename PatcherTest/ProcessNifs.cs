@@ -11,7 +11,9 @@ namespace PatcherTest
         [Fact]
         public void TransformTestNifs()
         {
-            ISettings settings = new Settings();
+            Settings settings = new Settings();
+            settings.meshes.InputFolder = "../../../Data/";
+            settings.meshes.OutputFolder = "../../../Data/Output/";
             MeshHandler meshHandler = new MeshHandler(settings);
             foreach (string nifFile in Directory.EnumerateFiles(settings.meshes.InputFolder, "*.nif"))
             {

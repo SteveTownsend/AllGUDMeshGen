@@ -58,7 +58,7 @@ namespace AllGUD
 
             using var children = node.GetChildren();
             using var childNodes = children.GetRefs();
-            IDictionary<int, NiAVObject> patchTargets = new Dictionary<int, NiAVObject>();
+            IDictionary<uint, NiAVObject> patchTargets = new Dictionary<uint, NiAVObject>();
             foreach (var childNode in childNodes)
             {
                 using (childNode)
@@ -91,7 +91,7 @@ namespace AllGUD
                 patchTarget.Value.name = new NiStringRef(newName);
 
                 // record new block and add as a sibling of existing
-                int newID = header!.AddBlock(patchTarget.Value);
+                uint newID = header!.AddBlock(patchTarget.Value);
                 node.GetChildren().AddBlockRef(newID);
 
                 if (_settings.diagnostics.DetailedLog)
@@ -111,7 +111,7 @@ namespace AllGUD
                     if (header == null)
                         return;
                     ISet<string> headerStrings = new HashSet<string>();
-                    for (int strId = 0; strId < header.GetStringCount(); ++strId)
+                    for (uint strId = 0; strId < header.GetStringCount(); ++strId)
                     {
                         headerStrings.Add(header.GetStringById(strId));
                     }
@@ -137,7 +137,7 @@ namespace AllGUD
                     }
                     // iterate blocks in the NIF
                     bool confirmedHuman = false;
-                    for (int blockID = 0; blockID < header.GetNumBlocks(); ++blockID)
+                    for (uint blockID = 0; blockID < header.GetNumBlocks(); ++blockID)
                     {
                         string blockType = header.GetBlockTypeStringById(blockID);
                         if (blockType == "NiNode")

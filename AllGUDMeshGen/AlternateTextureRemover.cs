@@ -53,7 +53,7 @@ namespace AllGUD
                 }
                 int shapeIndex = 0;
                 int processedSets = 0;
-                for (int blockId = 0; blockId < header.GetNumBlocks() && processedSets < inputTextureSets.Count; ++blockId)
+                for (uint blockId = 0; blockId < header.GetNumBlocks() && processedSets < inputTextureSets.Count; ++blockId)
                 {
                     NiShape shape = blockCache.EditableBlockById<NiShape>(blockId);
                     if (shape == null || (shape is not BSTriShape && shape is not NiTriShape && shape is not NiTriStrips))
