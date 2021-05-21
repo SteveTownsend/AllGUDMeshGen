@@ -4,7 +4,7 @@ VisualStudioVersion = 16.0.30330.147
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AllGUDMeshGen", "AllGUDMeshGen\AllGUDMeshGen.csproj", "{1084A8F0-DB4A-4517-9876-29E9B44D4A89}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PatcherTest", "PatcherTest\PatcherTest.csproj", "{EA413B93-2EFB-4CB3-BA37-733A465FC997}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PatcherTest", "PatcherTest\PatcherTest.csproj", "{EA413B93-2EFB-4CB3-BA37-733A465FC997}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

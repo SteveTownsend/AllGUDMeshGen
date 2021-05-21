@@ -27,7 +27,7 @@ namespace AllGUD
 
         bool meshHasController;
 
-        ISet<int> rootChildIds = new SortedSet<int>();
+        ISet<uint> rootChildIds = new SortedSet<uint>();
 
         internal NifTransformer(MeshHandler handler, NifFile source, string modelPath, ModelType modelType, WeaponType weaponType)
         {
@@ -56,7 +56,7 @@ namespace AllGUD
             shader.SetSkinned(false);
         }
 
-        private void ApplyTransformToChild(NiAVObject parent, NiAVObject child, int childId, bool isBow)
+        private void ApplyTransformToChild(NiAVObject parent, NiAVObject child, uint childId, bool isBow)
         {
             using MatTransform cTransform = child.transform;
             using MatTransform pTransform = parent.transform;
@@ -82,9 +82,9 @@ namespace AllGUD
             TransformChildren(child, childId, isBow);
         }
 
-        private void TransformChildren(NiAVObject blockObj, int blockId, bool isBow)
+        private void TransformChildren(NiAVObject blockObj, uint blockId, bool isBow)
         {
-            ISet<int> childDone = new HashSet<int>();
+            ISet<uint> childDone = new HashSet<uint>();
             using var childNodes = blockObj.CopyChildRefs();
             foreach (var childNode in childNodes)
             {
@@ -114,12 +114,12 @@ namespace AllGUD
             }
         }
 
-        private void TransformRootChild(NiAVObject blockObj, int blockId)
+        private void TransformRootChild(NiAVObject blockObj, uint blockId)
         {
             // Apply Transforms for all non-shapes. EXCEPT BONES
             if (meshHandler._settings.diagnostics.DetailedLog)
                 meshHandler._settings.diagnostics.logger.WriteLine("\t\tRemoving Skin @ Block: {0}", blockId);
-            if (!RemoveSkin(new HashSet<int>(), blockObj))
+            if (!RemoveSkin(new HashSet<uint>(), blockObj))
             {
                 // Don't do this for shapes, Don't remove Transforms of Shapes in case they need to be mirrored
                 if (!meshHasController && blockObj.controllerRef != null)
@@ -207,7 +207,7 @@ namespace AllGUD
             }
         }
 
-        private bool RemoveSkin(ISet<int> skinDone, NiAVObject blockObj)
+        private bool RemoveSkin(ISet<uint> skinDone, NiAVObject blockObj)
         {
             if (!(blockObj is BSTriShape) && !(blockObj is NiTriShape) && !(blockObj is NiTriStrips))
             {
@@ -267,7 +267,7 @@ namespace AllGUD
                         // Check for all scale transforms.
                         TransformScale(niShape, skinInstance);
                         // Remove the entire SkinInstance from the dest NIF
-                        niShape.SetSkinInstanceRef((int)niflycpp.NIF_NPOS);
+                        niShape.SetSkinInstanceRef(niflycpp.NIF_NPOS);
                     }
                     else
                     {
@@ -279,13 +279,13 @@ namespace AllGUD
             return true;
         }
 
-        private void RenameScabbard(ISet<int> alreadyDone, NiAVObject scabbard)
+        private void RenameScabbard(ISet<uint> alreadyDone, NiAVObject scabbard)
         {
             if (scabbard == null)
                 return;
             using var blockName = scabbard.name;
             string newName = blockName.get().Replace(ScbTag, NonStickScbTag, StringComparison.OrdinalIgnoreCase);
-            int newId = header.AddOrFindStringId(newName);
+            uint newId = header.AddOrFindStringId(newName);
             NiStringRef newRef = new NiStringRef(newName);
             newRef.SetIndex(newId);
             scabbard.name = newRef;
@@ -400,7 +400,7 @@ namespace AllGUD
                     NiGeometryData data = niflycpp.BlockCache.SafeClone<NiGeometryData>(blockCache.EditableBlockById<NiGeometryData>(dataRef.index));
                     if (data != null)
                     {
-                        int dataId = destHeader!.AddBlock(data);
+                        uint dataId = destHeader!.AddBlock(data);
                         destShape.SetDataRef(dataId);
                     }
                     else
@@ -427,7 +427,7 @@ namespace AllGUD
                                 blockCache.EditableBlockById<BSShaderTextureSet>(textureSetRef.index));
                             if (textureSet != null)
                             {
-                                int textureSetId = destHeader!.AddBlock(textureSet);
+                                uint textureSetId = destHeader!.AddBlock(textureSet);
                                 shaderProperty.SetTextureSetRef(textureSetId);
                             }
                             else
@@ -435,7 +435,7 @@ namespace AllGUD
                                 meshHandler._settings.diagnostics.logger.WriteLine("Expected BSShaderTextureSet at offset {0} not found", textureSetRef.index);
                             }
                         }
-                        int shaderId = destHeader!.AddBlock(shaderProperty);
+                        uint shaderId = destHeader!.AddBlock(shaderProperty);
                         destShape.SetShaderPropertyRef(shaderId);
                     }
                     else
@@ -453,7 +453,7 @@ namespace AllGUD
                         using NiAlphaProperty newAlpha = niflycpp.BlockCache.SafeClone<NiAlphaProperty>(alphaProperty);
                         if (newAlpha != null)
                         {
-                            int alphaId = destHeader!.AddBlock(newAlpha);
+                            uint alphaId = destHeader!.AddBlock(newAlpha);
                             destShape.SetAlphaPropertyRef(alphaId);
                         }
                     }
@@ -471,7 +471,7 @@ namespace AllGUD
                 //			Element.SetToDefault();
 
                 // Replace the main node in the dest once all once all editing due to child content is complete
-                int newId = destHeader!.AddBlock(destShape);
+                uint newId = destHeader!.AddBlock(destShape);
                 destNif!.SetParentNode(destShape, parent);
                 if (meshHandler._settings.diagnostics.DetailedLog)
                     meshHandler._settings.diagnostics.logger.WriteLine("Block {0}/{1} copied to dest ", newId, source.GetBlockName());
@@ -499,7 +499,7 @@ namespace AllGUD
                 using (blockDest)
                 {
                     // Copy Blocks all the way down until a trishape is reached
-                    ISet<int> alreadyDone = new HashSet<int>();
+                    ISet<uint> alreadyDone = new HashSet<uint>();
                     using var childNodes = source.CopyChildRefs();
                     foreach (var childNode in childNodes)
                     {
@@ -528,7 +528,7 @@ namespace AllGUD
             }
         }
 
-        private void MirrorBlock(int id, NiAVObject block)
+        private void MirrorBlock(uint id, NiAVObject block)
         {
             if (block == null)
                 return;
@@ -545,7 +545,7 @@ namespace AllGUD
             }
             else
             {
-                ISet<int> childDone = new HashSet<int>();
+                ISet<uint> childDone = new HashSet<uint>();
                 using var childNodes = block.CopyChildRefs();
                 foreach (var childNode in childNodes)
                 {
@@ -564,7 +564,7 @@ namespace AllGUD
         }
 		
 		// Avoid Access Violation in C++ code
-        private void CheckSetNormals(int id, BSTriShape shape, vectorVector3 rawNormals, int vertexCount)
+        private void CheckSetNormals(uint id, BSTriShape shape, vectorVector3 rawNormals, int vertexCount)
         {
             if (shape.GetNumVertices() != rawNormals.Count)
             {
@@ -579,7 +579,7 @@ namespace AllGUD
             shape.SetNormals(rawNormals);
         }
 
-        private void FlipAlongX(int id, NiAVObject block)
+        private void FlipAlongX(uint id, NiAVObject block)
         {
             if (block is BSTriShape)
             {
@@ -700,7 +700,7 @@ namespace AllGUD
             }
         }
 
-        private void ApplyTransform(int id, NiAVObject block)
+        private void ApplyTransform(uint id, NiAVObject block)
         {
             using MatTransform transform = block.transform;
             float scale = transform.scale;
@@ -834,7 +834,7 @@ namespace AllGUD
         {
             // Populate the list of child blocks, have to use these to Apply Transforms from non-trishapes to their kids
             NiAVObject? scabbard = null;
-            int scabbardId = -1;
+            uint scabbardId = 0;
             using (NiNode rootNode = nif.GetRootNode())
             {
                 if (rootNode == null)
@@ -862,7 +862,7 @@ namespace AllGUD
             //Rename Scabbard if present
             if (scabbard != null)
             {
-                RenameScabbard(new HashSet<int>(), scabbard);
+                RenameScabbard(new HashSet<uint>(), scabbard);
             }
 
             if (meshHasController)

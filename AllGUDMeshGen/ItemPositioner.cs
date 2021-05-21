@@ -33,7 +33,7 @@ namespace AllGUD
                 niflycpp.BlockCache blockCache = new niflycpp.BlockCache(nif.GetHeader());
 
                 // find direct children of root node that are NiNode
-                ISet<int> rootChildIds = new SortedSet<int>();
+                ISet<uint> rootChildIds = new SortedSet<uint>();
                 using (NiNode rootNode = nif.GetRootNode())
                 {
                     if (rootNode == null)
@@ -71,7 +71,7 @@ namespace AllGUD
             Interlocked.Increment(ref items);
         }
 
-        private void GenerateMeshes(ISet<int> rootChildIds, string relativePath, NifFile nif, niflycpp.BlockCache blockCache)
+        private void GenerateMeshes(ISet<uint> rootChildIds, string relativePath, NifFile nif, niflycpp.BlockCache blockCache)
         {
             bool isFemale = relativePath.Contains("Female", StringComparison.OrdinalIgnoreCase);
             // Get filename without the BC that marked it for processing
@@ -100,7 +100,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
@@ -126,7 +126,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
@@ -166,7 +166,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
@@ -192,7 +192,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
@@ -249,7 +249,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
@@ -276,7 +276,7 @@ namespace AllGUD
             using (NifFile newNif = new NifFile(nif))
             {
                 // Edit Blocks
-                foreach (int index in rootChildIds!)
+                foreach (uint index in rootChildIds!)
                 {
                     var block = niflycpp.BlockCache.SafeClone<NiNode>(blockCache.EditableBlockById<NiNode>(index));
                     using NiHeader newHeader = newNif.GetHeader();
