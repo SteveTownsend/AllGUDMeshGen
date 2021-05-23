@@ -72,7 +72,7 @@ namespace AllGUD
                             // Mark for patching and remove from target list - if we patch here, the loop
                             // range gets nuked
                             weapons.Remove(blockName.get());
-                            patchTargets[childNode.index] = niflycpp.BlockCache.SafeClone<NiAVObject>(nodeBlock);
+                            patchTargets[childNode.index] = nodeBlock;
 
                         }
                         else
@@ -96,11 +96,11 @@ namespace AllGUD
 
                 // record new block
                 //Brief attempt at setting new node to child of the weapon node didn't work with XPMSE
-                uint blockID = header.AddBlock(patchTarget.Value);
+                uint blockId = header.ReplaceBlock(patchTarget.Key, patchTarget.Value);
 
                 if (_settings.diagnostics.DetailedLog)
-                    _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                        patchTarget.Key, oldName.get(), blockID, newName);
+                    _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as {2}/{3}",
+                        patchTarget.Key, oldName.get(), blockId, newName);
             }
         }
         private void PatchSkeleton(string nifName)
@@ -183,7 +183,7 @@ namespace AllGUD
                                         string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
                                         newNif = Path.Join(destFolder, newNif);
                                         ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                        nif.SafeSave(newNif, ScriptLess.skeletonSaveOptions);
+                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
                                     }
                                     break;
                                 }
