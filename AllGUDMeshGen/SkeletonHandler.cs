@@ -97,7 +97,7 @@ namespace AllGUD
                 // record new block
                 //Brief attempt at setting new node to child of the weapon node didn't work with XPMSE
                 uint blockId = header.AddBlock(patchTarget.Value);
-                children.AddBlockRef(blockId);
+                nif.SetParentNode(patchTarget.Value, (NiNode)header.GetBlockById(parentId));
 
                 if (_settings.diagnostics.DetailedLog)
                     _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as {2}/{3} with parent {4}",
