@@ -72,7 +72,7 @@ namespace AllGUD
                             // Mark for patching and remove from target list - if we patch here, the loop
                             // range gets nuked
                             weapons.Remove(blockName.get());
-                            patchTargets[childNode.index] = nodeBlock;
+                            patchTargets[childNode.index] = niflycpp.BlockCache.SafeClone<NiAVObject>(nodeBlock);
 
                         }
                         else
