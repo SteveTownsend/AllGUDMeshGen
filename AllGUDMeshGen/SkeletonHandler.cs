@@ -51,7 +51,7 @@ namespace AllGUD
             _settings = settings;
         }
 
-        private void PatchWeaponNodes(NifFile nif, NiNode node, ISet<String> weapons)
+        private void PatchWeaponNodes(NifFile nif, NiNode node, uint parentId, ISet<String> weapons)
         {
             if (node == null)
                 return;
@@ -77,7 +77,7 @@ namespace AllGUD
                         }
                         else
                         {
-                            PatchWeaponNodes(nif, (NiNode)nodeBlock, weapons);
+                            PatchWeaponNodes(nif, (NiNode)nodeBlock, childNode.index, weapons);
                         }
                     }
                 }
@@ -96,11 +96,12 @@ namespace AllGUD
 
                 // record new block
                 //Brief attempt at setting new node to child of the weapon node didn't work with XPMSE
-                uint blockID = header.AddBlock(patchTarget.Value);
+                uint blockId = header.AddBlock(patchTarget.Value);
+                nif.SetParentNode(patchTarget.Value, (NiNode)header.GetBlockById(parentId));
 
                 if (_settings.diagnostics.DetailedLog)
-                    _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                        patchTarget.Key, oldName.get(), blockID, newName);
+                    _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as {2}/{3} with parent {4}",
+                        patchTarget.Key, oldName.get(), blockId, newName, parentId);
             }
         }
         private void PatchSkeleton(string nifName)
@@ -141,14 +142,14 @@ namespace AllGUD
                     }
                     // iterate blocks in the NIF
                     bool confirmedHuman = false;
-                    for (uint blockID = 0; blockID < header.GetNumBlocks(); ++blockID)
+                    for (uint blockId = 0; blockId < header.GetNumBlocks(); ++blockId)
                     {
-                        string blockType = header.GetBlockTypeStringById(blockID);
+                        string blockType = header.GetBlockTypeStringById(blockId);
                         if (blockType == "NiNode")
                         {
                             if (!confirmedHuman)
                             {
-                                NiNode node = blockCache.EditableBlockById<NiNode>(blockID);
+                                NiNode node = blockCache.EditableBlockById<NiNode>(blockId);
                                 if (node != null)
                                 {
                                     // scan block refs checking for Extra Data with species=human
@@ -175,7 +176,7 @@ namespace AllGUD
 
                                     // find child weapon nodes in the graph
                                     ISet<string> targets = new HashSet<string>(weaponNodes);
-                                    PatchWeaponNodes(nif, node, targets);
+                                    PatchWeaponNodes(nif, node, blockId, targets);
                                     if (targets.Count < weaponNodes.Count)
                                     {
                                         string newNif = Path.GetFileName(nifName);
@@ -183,7 +184,7 @@ namespace AllGUD
                                         string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
                                         newNif = Path.Join(destFolder, newNif);
                                         ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                        nif.SafeSave(newNif, ScriptLess.skeletonSaveOptions);
+                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
                                     }
                                     break;
                                 }
