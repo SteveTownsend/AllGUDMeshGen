@@ -143,46 +143,50 @@ namespace AllGUD
                     bool confirmedHuman = false;
                     for (uint blockID = 0; blockID < header.GetNumBlocks(); ++blockID)
                     {
-                        NiNode node = blockCache.EditableBlockById<NiNode>(blockID);
-                        if (node != null)
+                        string blockType = header.GetBlockTypeStringById(blockID);
+                        if (blockType == "NiNode")
                         {
                             if (!confirmedHuman)
                             {
-                                // scan block refs checking for Extra Data with species=human
-                                using var children = nif.StringExtraDataChildren(node, true);
-                                foreach (NiStringExtraData extraData in children)
+                                NiNode node = blockCache.EditableBlockById<NiNode>(blockID);
+                                if (node != null)
                                 {
-                                    using (extraData)
+                                    // scan block refs checking for Extra Data with species=human
+                                    using var children = nif.StringExtraDataChildren(node, true);
+                                    foreach (NiStringExtraData extraData in children)
                                     {
-                                        using var refs = extraData.GetStringRefList();
-                                        if (refs.Count != 2)
-                                            continue;
-                                        using var refKey = refs[0];
-                                        using var refValue = refs[1];
-                                        if (refKey.get() == "species" && refValue.get() == "Human")
+                                        using (extraData)
                                         {
-                                            _settings.diagnostics.logger.WriteLine("This Skeleton is confirmed to be Human");
-                                            confirmedHuman = true;
-                                            break;
+                                            using var refs = extraData.GetStringRefList();
+                                            if (refs.Count != 2)
+                                                continue;
+                                            using var refKey = refs[0];
+                                            using var refValue = refs[1];
+                                            if (refKey.get() == "species" && refValue.get() == "Human")
+                                            {
+                                                _settings.diagnostics.logger.WriteLine("This Skeleton is confirmed to be Human");
+                                                confirmedHuman = true;
+                                                break;
+                                            }
                                         }
                                     }
-                                }
-                                if (!confirmedHuman)
-                                    break;
+                                    if (!confirmedHuman)
+                                        break;
 
-                                // find child weapon nodes in the graph
-                                ISet<string> targets = new HashSet<string>(weaponNodes);
-                                PatchWeaponNodes(nif, node, targets);
-                                if (targets.Count < weaponNodes.Count)
-                                {
-                                    string newNif = Path.GetFileName(nifName);
-                                    string relativePath = Path.GetRelativePath(skeletonMeshLocation!, Path.GetDirectoryName(nifName)!);
-                                    string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
-                                    newNif = Path.Join(destFolder, newNif);
-                                    ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                    nif.SafeSave(newNif, ScriptLess.saveOptions);
+                                    // find child weapon nodes in the graph
+                                    ISet<string> targets = new HashSet<string>(weaponNodes);
+                                    PatchWeaponNodes(nif, node, targets);
+                                    if (targets.Count < weaponNodes.Count)
+                                    {
+                                        string newNif = Path.GetFileName(nifName);
+                                        string relativePath = Path.GetRelativePath(skeletonMeshLocation!, Path.GetDirectoryName(nifName)!);
+                                        string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
+                                        newNif = Path.Join(destFolder, newNif);
+                                        ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
+                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
+                                    }
+                                    break;
                                 }
-                                break;
                             }
                         }
                     }
