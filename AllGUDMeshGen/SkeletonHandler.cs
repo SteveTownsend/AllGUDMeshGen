@@ -72,7 +72,7 @@ namespace AllGUD
                             // Mark for patching and remove from target list - if we patch here, the loop
                             // range gets nuked
                             weapons.Remove(blockName.get());
-                            patchTargets[childNode.index] = nodeBlock;
+                            patchTargets[childNode.index] = niflycpp.BlockCache.SafeClone<NiAVObject>(nodeBlock);
 
                         }
                         else
@@ -88,15 +88,19 @@ namespace AllGUD
             {
                 using var oldName = patchTarget.Value.name;
                 string newName = oldName.get() + "Armor";
-                patchTarget.Value.name = new NiStringRef(newName);
 
-                // record new block and add as a sibling of existing
-                uint newID = header!.AddBlock(patchTarget.Value);
-                node.GetChildren().AddBlockRef(newID);
+                uint newId = header!.AddOrFindStringId(newName);
+                NiStringRef newRef = new NiStringRef(newName);
+                newRef.SetIndex(newId);
+                patchTarget.Value.name = newRef;
+
+                // record new block
+                //Brief attempt at setting new node to child of the weapon node didn't work with XPMSE
+                uint blockID = header.AddBlock(patchTarget.Value);
 
                 if (_settings.diagnostics.DetailedLog)
                     _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
-                        patchTarget.Key, oldName.get(), newID, newName);
+                        patchTarget.Key, oldName.get(), blockID, newName);
             }
         }
         private void PatchSkeleton(string nifName)
@@ -179,7 +183,7 @@ namespace AllGUD
                                         string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
                                         newNif = Path.Join(destFolder, newNif);
                                         ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
+                                        nif.SafeSave(newNif, ScriptLess.skeletonSaveOptions);
                                     }
                                     break;
                                 }
