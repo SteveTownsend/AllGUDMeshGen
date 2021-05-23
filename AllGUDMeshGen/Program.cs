@@ -37,6 +37,14 @@ namespace AllGUD
             sortBlocks = true
         };
 
+        // save options set to simplify binary comparison of output vs Edit Script output
+        // do not optimize Skeletons as the blocks we patch in are unreferenced
+        public static readonly nifly.NifSaveOptions skeletonSaveOptions = new NifSaveOptions()
+        {
+            optimize = false,
+            sortBlocks = false
+        };
+
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
             patcherState = state;

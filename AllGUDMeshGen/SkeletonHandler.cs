@@ -94,9 +94,9 @@ namespace AllGUD
                 newRef.SetIndex(newId);
                 patchTarget.Value.name = newRef;
 
-                // record new block and add as a sibling of existing
+                // record new block
+                //Brief attempt at setting new node to child of the weapon node didn't work with XPMSE
                 uint blockID = header.AddBlock(patchTarget.Value);
-                nif.SetParentNode(patchTarget.Value, node);
 
                 if (_settings.diagnostics.DetailedLog)
                     _settings.diagnostics.logger.WriteLine("Patched Weapon at Node {0}/{1} as new Block {2}/{3}",
@@ -183,7 +183,7 @@ namespace AllGUD
                                         string destFolder = ScriptLess.settings.skeleton.OutputFolder + skeletonMeshFolder + relativePath;
                                         newNif = Path.Join(destFolder, newNif);
                                         ScriptLess.settings.diagnostics.logger.WriteLine("All Weapon nodes patched for Skeleton, saving to {0}", newNif);
-                                        nif.SafeSave(newNif, ScriptLess.saveOptions);
+                                        nif.SafeSave(newNif, ScriptLess.skeletonSaveOptions);
                                     }
                                     break;
                                 }
