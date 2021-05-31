@@ -29,10 +29,11 @@ namespace AllGUD
         {
             var defaults = new List<string>();
             // For Animated Armoury:
-            // - download Animated Armoury All Geared Up Derivative from https://www.nexusmods.com/skyrimspecialedition/mods/15394?tab=files
+            // - download Animated Armoury All Geared Up Derivative from https://www.nexusmods.com/skyrimspecialedition/mods/35978?tab=files
             // - install to load later than all Animated Armoury meshes
             // - delete all the meshes except Fists
             defaults.Add("NewArmoury,Fists,Claw");
+            defaults.Add("NewArmoury,Whips");
             // SkyRe_Main.esp has farmers gloves defined as a sword, crashes during transform
             defaults.Add("SkyRe_Main,farmclothes03,farmerglovesm_0");
             return defaults;

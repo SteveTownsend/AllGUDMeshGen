@@ -9,6 +9,8 @@ using Mutagen.Bethesda.Skyrim;
 using System.Threading.Tasks;
 using SSEForms = Mutagen.Bethesda.FormKeys.SkyrimSE;
 using nifly;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Archives;
 
 namespace AllGUD
 {
@@ -642,11 +644,8 @@ namespace AllGUD
                             return;
                         }
 
-                        using MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size);
-                        bsaMesh.CopyDataTo(meshStream);
-
                         // Load NIF from stream via String - must rewind first
-                        byte[] bsaData = meshStream.ToArray();
+                        byte[] bsaData = bsaMesh.GetBytes();
                         using vectoruchar bsaBytes = new vectoruchar(bsaData);
 
                         IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
