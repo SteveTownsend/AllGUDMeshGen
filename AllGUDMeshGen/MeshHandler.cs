@@ -636,28 +636,35 @@ namespace AllGUD
                         Where(candidate => bsaFiles.ContainsKey(candidate.Path.ToLower())).
                         ForAll(bsaMesh =>
                     {
-                        string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
-                        TargetMeshInfo meshInfo = targetMeshes[rawPath];
-                        if (bsaDone.ContainsKey(rawPath))
+                        try
                         {
-                            _settings.diagnostics.logger.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
-                            return;
-                        }
-
-                        // Load NIF from stream via String - must rewind first
-                        byte[] bsaData = bsaMesh.GetBytes();
-                        using vectoruchar bsaBytes = new vectoruchar(bsaData);
-
-                        IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
-                        foreach (var pathNif in nifs)
-                        {
-                            using (pathNif.Value)
+                            string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
+                            TargetMeshInfo meshInfo = targetMeshes[rawPath];
+                            if (bsaDone.ContainsKey(rawPath))
                             {
-                                _settings.diagnostics.logger.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
-                                GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
+                                _settings.diagnostics.logger.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
+                                return;
                             }
+
+                            // Load NIF from stream via String - must rewind first
+                            byte[] bsaData = bsaMesh.GetBytes();
+                            using vectoruchar bsaBytes = new vectoruchar(bsaData);
+
+                            IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
+                            foreach (var pathNif in nifs)
+                            {
+                                using (pathNif.Value)
+                                {
+                                    _settings.diagnostics.logger.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                    GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
+                                }
+                            }
+                            bsaDone.Add(rawPath, bsaFile);
                         }
-                        bsaDone.Add(rawPath, bsaFile);
+                        catch (Exception e)
+                        {
+                            _settings.diagnostics.logger.WriteLine("Exception on mesh {0} from BSA {1}: {2}", bsaMesh.Path, bsaFile, e.GetBaseException());
+                        }
                     });
                 }
             }
