@@ -14,8 +14,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.Platforms" Version="5.0.2" />
-    <PackageReference Include="Mutagen.Bethesda" Version="0.30.2" />
-    <PackageReference Include="Mutagen.Bethesda.Core" Version="0.30.2" />
+    <PackageReference Include="Mutagen.Bethesda" Version="0.30.3-prerelease001" />
+    <PackageReference Include="Mutagen.Bethesda.Core" Version="0.30.3-prerelease001" />
     <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="2.1.0" />
     <PackageReference Include="Mutagen.Bethesda.Synthesis" Version="0.19.1" />
     <PackageReference Include="niflysharp" Version="1.2.8" />
