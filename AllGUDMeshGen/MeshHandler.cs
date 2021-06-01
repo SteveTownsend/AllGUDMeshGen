@@ -16,7 +16,6 @@ namespace AllGUD
 {
     public class MeshHandler
     {
-        Object lockObj = new Object();
         private class TargetMeshInfo
         {
             public readonly string originalName;
@@ -581,8 +580,9 @@ namespace AllGUD
             return GenerateAlternateTextureMeshes(originalNif, nifOriginalPath, modelType);
         }
 
-        private IDictionary<string, NifFile> CheckBSABytesAlternateTextures(string nifOriginalPath, ModelType modelType, NifFile originalNif)
+        private IDictionary<string, NifFile> CheckBSABytesAlternateTextures(string nifOriginalPath, ModelType modelType, vectoruchar bsaBytes)
         {
+            NifFile originalNif = new NifFile(bsaBytes);
             return GenerateAlternateTextureMeshes(originalNif, nifOriginalPath, modelType);
         }
 
@@ -645,15 +645,10 @@ namespace AllGUD
                         }
 
                         // Load NIF from stream via String - must rewind first
-                        NifFile originalNif;
-                        lock (lockObj)
-                        {
-                            byte[] bsaData = bsaMesh.GetBytes();
-                            using vectoruchar bsaBytes = new vectoruchar(bsaData);
-                            originalNif = new NifFile(bsaBytes);
-                        }
+                        byte[] bsaData = bsaMesh.GetBytes();
+                        using vectoruchar bsaBytes = new vectoruchar(bsaData);
 
-                        IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, originalNif);
+                        IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
                         foreach (var pathNif in nifs)
                         {
                             using (pathNif.Value)
