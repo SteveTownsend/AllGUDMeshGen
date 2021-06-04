@@ -627,9 +627,8 @@ namespace AllGUD
             IDictionary<string, string> bsaDone = new ConcurrentDictionary<string, string>();
             if (bsaFiles.Count > 0)
             {
-                // Introspect BSAs to locate meshes not found as loose files. Dups are ignored - first find wins.
-                // ModKey parameter appears immaterial.
-                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath, new ModKey()))
+                // Introspect all known BSAs to locate meshes not found as loose files. Dups are ignored - first find wins.
+                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath))
                 {
                     var bsaReader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
                     bsaReader.Files.AsParallel().
