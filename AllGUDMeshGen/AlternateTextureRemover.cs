@@ -1,9 +1,7 @@
 ﻿using System;
-using System.IO;
 using System.Collections.Generic;
 using nifly;
 using Mutagen.Bethesda.Skyrim;
-using ModelType = AllGUD.MeshHandler.ModelType;
 
 namespace AllGUD
 {

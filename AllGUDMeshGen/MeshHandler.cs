@@ -9,6 +9,8 @@ using Mutagen.Bethesda.Skyrim;
 using System.Threading.Tasks;
 using SSEForms = Mutagen.Bethesda.FormKeys.SkyrimSE;
 using nifly;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Archives;
 
 namespace AllGUD
 {
@@ -625,40 +627,43 @@ namespace AllGUD
             IDictionary<string, string> bsaDone = new ConcurrentDictionary<string, string>();
             if (bsaFiles.Count > 0)
             {
-                // Introspect BSAs to locate meshes not found as loose files. Dups are ignored - first find wins.
-                // ModKey parameter appears immaterial.
-                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath, new ModKey()))
+                // Introspect all known BSAs to locate meshes not found as loose files. Dups are ignored - first find wins.
+                foreach (var bsaFile in Archive.GetApplicableArchivePaths(GameRelease.SkyrimSE, ScriptLess.PatcherState.DataFolderPath))
                 {
                     var bsaReader = Archive.CreateReader(GameRelease.SkyrimSE, bsaFile);
                     bsaReader.Files.AsParallel().
                         Where(candidate => bsaFiles.ContainsKey(candidate.Path.ToLower())).
                         ForAll(bsaMesh =>
                     {
-                        string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
-                        TargetMeshInfo meshInfo = targetMeshes[rawPath];
-                        if (bsaDone.ContainsKey(rawPath))
+                        try
                         {
-                            _settings.diagnostics.logger.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
-                            return;
-                        }
-
-                        using MemoryStream meshStream = new MemoryStream((int)bsaMesh.Size);
-                        bsaMesh.CopyDataTo(meshStream);
-
-                        // Load NIF from stream via String - must rewind first
-                        byte[] bsaData = meshStream.ToArray();
-                        using vectoruchar bsaBytes = new vectoruchar(bsaData);
-
-                        IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
-                        foreach (var pathNif in nifs)
-                        {
-                            using (pathNif.Value)
+                            string rawPath = bsaFiles[bsaMesh.Path.ToLower()];
+                            TargetMeshInfo meshInfo = targetMeshes[rawPath];
+                            if (bsaDone.ContainsKey(rawPath))
                             {
-                                _settings.diagnostics.logger.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
-                                GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
+                                _settings.diagnostics.logger.WriteLine("Mesh {0} from BSA {1} already processed from BSA {2}", bsaMesh.Path, bsaFile, bsaDone[rawPath]);
+                                return;
                             }
+
+                            // Load NIF from stream via String - must rewind first
+                            byte[] bsaData = bsaMesh.GetBytes();
+                            using vectoruchar bsaBytes = new vectoruchar(bsaData);
+
+                            IDictionary<string, NifFile> nifs = CheckBSABytesAlternateTextures(meshInfo.originalName, meshInfo.modelType, bsaBytes);
+                            foreach (var pathNif in nifs)
+                            {
+                                using (pathNif.Value)
+                                {
+                                    _settings.diagnostics.logger.WriteLine("Transform mesh {0} from BSA {1}", bsaMesh.Path, bsaFile);
+                                    GenerateMeshes(pathNif.Value, pathNif.Key, targetMeshes[rawPath].modelType);
+                                }
+                            }
+                            bsaDone.Add(rawPath, bsaFile);
                         }
-                        bsaDone.Add(rawPath, bsaFile);
+                        catch (Exception e)
+                        {
+                            _settings.diagnostics.logger.WriteLine("Exception on mesh {0} from BSA {1}: {2}", bsaMesh.Path, bsaFile, e.GetBaseException());
+                        }
                     });
                 }
             }
