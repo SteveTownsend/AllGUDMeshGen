@@ -34,8 +34,8 @@ namespace AllGUD
             // - delete all the meshes except Fists
             defaults.Add("NewArmoury,Fists,Claw");
             defaults.Add("NewArmoury,Whips");
-            // SkyRe_Main.esp has farmers gloves defined as a sword, crashes during transform
-            defaults.Add("SkyRe_Main,farmclothes03,farmerglovesm_0");
+            // SkyRe_Main.esp and others have farmers gloves defined as a sword, crashes during transform
+            defaults.Add("farmclothes03,farmerglovesm_0");
             return defaults;
         }
         private static readonly List<string[]> _defaultNifBlackList = ParseNifFilters(DefaultBlackList());
