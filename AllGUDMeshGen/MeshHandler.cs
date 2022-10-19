@@ -290,7 +290,7 @@ namespace AllGUD
                 // skip if no record or Model
                 if (target == null || target.Model == null)
                     continue;
-                string modelPath = target.Model.File.ToLower();
+                string modelPath = target.Model.File.RawPath.ToLower();
                 if (modelPath.Contains("weapon", StringComparison.OrdinalIgnoreCase) ||
                     modelPath.Contains("armor", StringComparison.OrdinalIgnoreCase))
                 {
